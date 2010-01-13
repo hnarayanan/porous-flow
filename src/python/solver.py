@@ -132,9 +132,9 @@ a = a_darcy + a_s
 
 pde= VariationalProblem(a, L, nonlinear=True)
 
-fs0 = File("s0_phase.pvd")
-fs1 = File("s1_phase.pvd")
-fu = File("u.pvd")
+fs0 = File("results/s0_phase.pvd")
+fs1 = File("results/s1_phase.pvd")
+fu = File("results/u.pvd")
 
 t = 0.0
 T = 50*dt
