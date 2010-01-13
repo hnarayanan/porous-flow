@@ -1,0 +1,22 @@
+# Copyright (C) 2008 Garth N. Wells
+# Licensed under the GNU LGPL Version 2.1
+#
+
+q = 2
+
+BDM = FiniteElement("Brezzi-Douglas-Marini", "triangle", q)
+Pk  = FiniteElement("Discontinuous Lagrange", "triangle", q-1)
+P0  = FiniteElement("Discontinuous Lagrange", "triangle", 0)
+
+mixed_element = BDM + Pk
+
+v  = TestFunction(P0)
+up = TrialFunction(P0)
+
+(u, p)  = Functions(mixed_element)
+dFdS    = Function(Pk)
+h       = Constant("triangle")
+
+a = v*up*dx
+L = v*dFdS*dFdS*dot(u, u)/(h*h)*dx   
+

@@ -1,0 +1,43 @@
+# Copyright (C) 2007 Kristian B. Oelgaard and Garth N. Wells.
+# Licensed under the GNU LGPL Version 2.1.
+#
+# First added:  2007-06-29
+# Last changed: 2008-05-05
+#
+# The bilinear form a(v, u) and linear form L(v) for
+# advection-diffusion. Discontinuous formulation with upwinding.
+#
+
+q = 0
+
+P0  = FiniteElement("Discontinuous Lagrange", "triangle", 0)
+P1  = FiniteElement("Discontinuous Lagrange", "triangle", 1)
+Pk  = FiniteElement("Discontinuous Lagrange", "triangle", q)
+BDM = FiniteElement("Brezzi-Douglas-Marini", "triangle", q+1)
+
+mixed_element = BDM + Pk
+
+# Test and trial functions
+v  = TestFunction(Pk)
+s1 = TrialFunction(Pk)
+
+(u, p) = Functions(mixed_element)
+s0     = Function(Pk)
+F      = Function(Pk)
+g      = Function(P1)  # saturation bc
+
+n  = triangle.n
+dt = Function(P0)
+
+# ( dot(v, n) + |dot(v, n)| )/2.0 
+un = (dot(u, n) + abs(dot(u, n)))/2.0
+
+un_h = (dot(u, n) - abs(dot(u, n)))/2.0
+
+a =  dot(v, s1)*dx
+L =  dot(v, s0)*dx \
+   + dt('+')*dot(grad(v), F*u)*dx \
+   - dt('+')*dot(jump(v), un('+')*F('+') - un('-')*F('-'))*dS \
+   - dt*dot(v, un*F)*ds \
+   - dt*dot(v, un_h*g)*ds(1)
+

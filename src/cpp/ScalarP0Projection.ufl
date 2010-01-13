@@ -1,0 +1,19 @@
+# Copyright (C) 2008 Garth N. Wells
+# Licensed under the GNU LGPL Version 2.1
+#
+# The bilinear form a(v, u) and linear form L(v) for
+# a mixed formulation of Poisson's equation with BDM
+# (Brezzi-Douglas-Marini) elements.
+
+# Compile this form with FFC: ffc -l dolfin MixedPoisson.form
+
+P1 = FiniteElement("Lagrange", "triangle", 1)
+P0 = FiniteElement("Discontinuous Lagrange", "triangle", 0)
+
+v = TestFunction(P1)
+u = TrialFunction(P1)
+f = Function(P0)
+
+a = v*u*dx
+L = v*f*dx   
+

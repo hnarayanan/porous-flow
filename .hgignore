@@ -1,0 +1,10 @@
+syntax: glob
+*~
+*.orig
+*.pvd
+*.pyc
+*.pyo
+*.vtu
+
+syntax: regexp
+.*\#.*\#$

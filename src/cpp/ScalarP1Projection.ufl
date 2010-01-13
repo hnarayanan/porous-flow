@@ -1,0 +1,15 @@
+# Copyright (C) 2008 Garth N. Wells
+# Licensed under the GNU LGPL Version 2.1
+#
+
+k=1
+Pk  = FiniteElement("Discontinuous Lagrange", "triangle", k)
+P1  = FiniteElement("Lagrange", "triangle", 1)
+
+v = TestFunction(P1)
+u = TrialFunction(P1)
+w = Function(Pk)
+
+a = v*u*dx
+L = v*w*dx   
+
