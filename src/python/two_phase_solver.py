@@ -51,8 +51,9 @@ inflow.mark(sub_domains, 1)
 Pv1 = VectorFunctionSpace(mesh, "Lagrange", 1)
 BDM = FunctionSpace(mesh, "BDM", 1)
 P0  = FunctionSpace(mesh, "DG", 0)
+P1  = FunctionSpace(mesh, "CG", 1)
 
-mixed_space = MixedFunctionSpace([BDM, P0, P0])
+mixed_space = MixedFunctionSpace([BDM, P0, P1])
 
 # Boundary function
 gsw = Gsw(degree=1)
@@ -100,9 +101,17 @@ s_mid = 0.5*(s + s0)
 F = s_mid*s_mid/( s_mid*s_mid + 0.2*(1.0-s_mid)*(1.0-s_mid) );
 
 # Forms
+
+# DG form
+#L_s =  dot(v, s)*dx - dot(v, s0)*dx - dt*dot(grad(v), u*F)*dx \
+#      + dt*dot(jump(v), un('+')*F('+') - un('-')*F('-'))*dS \
+#      + dt*dot(v, un*F)*ds + dt*dot(v, un_h*gsw)*ds
+
+# CG form (crude with artificial diffusion)
 L_s =  dot(v, s)*dx - dot(v, s0)*dx - dt*dot(grad(v), u*F)*dx \
-      + dt*dot(jump(v), un('+')*F('+') - un('-')*F('-'))*dS \
+      + dt*dot(grad(v), grad(s_mid))*dx \
       + dt*dot(v, un*F)*ds + dt*dot(v, un_h*gsw)*ds
+
 a_s = derivative(L_s, U, dU)
 
 # Sum forms
