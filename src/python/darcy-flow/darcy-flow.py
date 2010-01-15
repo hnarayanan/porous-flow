@@ -35,10 +35,10 @@ V = BDM + DG
 (v, q) = TestFunctions(V)
 
 # Construct a spatially-varying permeability matrix (inverse)
-kinv11 = Expression("1.0 - x[0]/2.0")
+kinv11 = Expression("(cos(4*pi*x[1])/5.0 + 1.0)")
 kinv12 = Constant(0.0)
 kinv21 = Constant(0.0)
-kinv22 = Expression("1.0 - x[0]/2.0")
+kinv22 = Expression("(cos(4*pi*x[1])/5.0 + 1.0)")
 Kinv = as_matrix(((kinv11, kinv12), (kinv21, kinv22)))
 
 pbar = PressureBC()
@@ -55,7 +55,8 @@ problem = VariationalProblem(a, L)
 P1 = VectorFunctionSpace(mesh, "CG", 1)
 u_proj = project(u, P1)
 
-# Plot solution fields
+# Plot interesting fields
+plot(kinv11, title="Inverse permeability magnitude", mesh=mesh, interactive=True)
 plot(u_proj, title="Velocity", interactive=True)
 plot(p, title="Pressure", interactive=True)
 
