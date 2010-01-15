@@ -18,10 +18,21 @@ __license__   = "GNU GPL Version 3.0"
 
 from dolfin import *
 
+# Construct a spatially-varying permeability matrix (inverse)
+kinv11 = Expression("(cos(4*pi*x[1])/5.0 + 1.0)")
+kinv12 = Constant(0.0)
+kinv21 = Constant(0.0)
+kinv22 = Expression("(cos(4*pi*x[1])/5.0 + 1.0)")
+Kinv = as_matrix(((kinv11, kinv12), (kinv21, kinv22)))
+
 # Pressure boundary condition
 class PressureBC(Expression):
     def eval(self, values, x):
         values[0] = 1.0 - x[0]
+
+# Define the bilinear form
+def a(v, q, u, p):
+    return dot(Kinv*v, u)*dx - div(v)*p*dx + q*div(u)*dx
 
 # Create mesh and define function spaces
 mesh = UnitSquare(32, 32)
@@ -34,35 +45,47 @@ V = BDM + DG
 (u, p) = TrialFunctions(V)
 (v, q) = TestFunctions(V)
 
-# Construct a spatially-varying permeability matrix (inverse)
-kinv11 = Expression("(cos(4*pi*x[1])/5.0 + 1.0)")
-kinv12 = Constant(0.0)
-kinv21 = Constant(0.0)
-kinv22 = Expression("(cos(4*pi*x[1])/5.0 + 1.0)")
-Kinv = as_matrix(((kinv11, kinv12), (kinv21, kinv22)))
-
 pbar = PressureBC()
 f = Constant(0.0)
 
-a = dot(Kinv*v, u)*dx - div(v)*p*dx + q*div(u)*dx
-L = q*f*dx - inner(v, pbar*n)*ds
+# Pose primal problem
+a_primal = a(v, q, u, p)
+L_primal = q*f*dx - inner(v, pbar*n)*ds
 
-# Compute solution
-problem = VariationalProblem(a, L)
-(u, p) = problem.solve().split()
+# Compute primal solution
+problem_primal = VariationalProblem(a_primal, L_primal)
+(U, P) = problem_primal.solve().split()
 
-# Project u for post-processing
+# Pose adjoint problem
+a_dual = a(u, p, v, q)
+L_dual = v[0]*ds # Some goal: Average of one component of the velocity
+                 #            over the boundary
+
+	
+problem_dual = VariationalProblem(a_dual, L_dual)
+(W, R) = problem_dual.solve().split()
+
+# Project U, W for post-processing
 P1 = VectorFunctionSpace(mesh, "CG", 1)
-u_proj = project(u, P1)
+U_proj = project(U, P1)
+W_proj = project(W, P1)
 
 # Plot interesting fields
-plot(kinv11, title="Inverse permeability magnitude", mesh=mesh, interactive=True)
-plot(u_proj, title="Velocity", interactive=True)
-plot(p, title="Pressure", interactive=True)
+plot(kinv11, title="Inverse permeability magnitude", mesh=mesh)
+plot(U_proj, title="Velocity")
+plot(P, title="Pressure")
 
-# Save solution to pvd format
-u_file = File("u_darcy.pvd")
-p_file = File("p_darcy.pvd")
+plot(W_proj, title="Dual velocity")
+plot(R, title="Dual pressure", interactive=True)
 
-u_file << u_proj
-p_file << p
+# Save solutions in pvd format
+u_file = File("primal_velocity.pvd")
+p_file = File("primal_pressure.pvd")
+w_file = File("dual_velocity.pvd")
+r_file = File("dual_pressure.pvd")
+
+u_file << U_proj
+p_file << P
+
+w_file << W_proj
+r_file << R
