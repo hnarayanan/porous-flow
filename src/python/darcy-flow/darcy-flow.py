@@ -53,6 +53,7 @@ a_primal = a(v, q, u, p)
 L_primal = q*f*dx - inner(v, pbar*n)*ds
 
 # Compute primal solution
+print "Solve primal problem"
 problem_primal = VariationalProblem(a_primal, L_primal)
 (U, P) = problem_primal.solve().split()
 
@@ -61,11 +62,12 @@ a_dual = a(u, p, v, q)
 L_dual = v[0]*ds # Some goal: Average of one component of the velocity
                  #            over the boundary
 
-	
+print "Solve dual problem"
 problem_dual = VariationalProblem(a_dual, L_dual)
 (W, R) = problem_dual.solve().split()
 
 # Project U, W for post-processing
+print "Post-processing projections"
 P1 = VectorFunctionSpace(mesh, "CG", 1)
 U_proj = project(U, P1)
 W_proj = project(W, P1)
@@ -76,7 +78,9 @@ plot(U_proj, title="Velocity")
 plot(P, title="Pressure")
 
 plot(W_proj, title="Dual velocity")
-plot(R, title="Dual pressure", interactive=True)
+plot(R, title="Dual pressure")
+interactive()
+
 
 # Save solutions in pvd format
 u_file = File("primal_velocity.pvd")
