@@ -31,8 +31,8 @@ class PressureBC(Expression):
         values[0] = 1.0 - x[0]
 
 # Define the bilinear form
-def a(v, q, u, p):
-    return dot(Kinv*v, u)*dx - div(v)*p*dx + q*div(u)*dx
+#def a(v, q, u, p):
+#    return dot(Kinv*v, u)*dx - div(v)*p*dx + q*div(u)*dx
 
 # Create mesh and define function spaces
 mesh = UnitSquare(32, 32)
@@ -49,7 +49,8 @@ pbar = PressureBC()
 f = Constant(0.0)
 
 # Pose primal problem
-a_primal = a(v, q, u, p)
+#a_primal = a(v, q, u, p)
+a_primal = dot(Kinv*v, u)*dx - div(v)*p*dx + q*div(u)*dx
 L_primal = q*f*dx - inner(v, pbar*n)*ds
 
 # Compute primal solution
@@ -58,8 +59,9 @@ problem_primal = VariationalProblem(a_primal, L_primal)
 (U, P) = problem_primal.solve().split()
 
 # Pose adjoint problem
-a_dual = a(u, p, v, q)
-L_dual = v[0]*ds # Some goal: Average of one component of the velocity
+#a_dual = a(u, p, v, q)
+a_dual = adjoint(a_primal)
+L_dual = v[0]*1.0*ds # Some goal: Average of one component of the velocity
                  #            over the boundary
 
 print "Solve dual problem"
@@ -73,12 +75,12 @@ U_proj = project(U, P1)
 W_proj = project(W, P1)
 
 # Plot interesting fields
-plot(kinv11, title="Inverse permeability magnitude", mesh=mesh)
-plot(U_proj, title="Velocity")
-plot(P, title="Pressure")
+#plot(kinv11, title="Inverse permeability magnitude", mesh=mesh)
+#plot(U_proj, title="Velocity")
+#plot(P, title="Pressure")
 
 plot(W_proj, title="Dual velocity")
-plot(R, title="Dual pressure")
+#plot(R, title="Dual pressure")
 interactive()
 
 
