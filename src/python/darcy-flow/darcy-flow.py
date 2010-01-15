@@ -2,13 +2,13 @@
 This program solves pressure-driven, steady-state Darcy's flow on a
 square plate with spatially varying permeability.
 
-        u + K*grad(p) = 0
-               div(u) = 0
+        Kinv*u + grad(p) = 0
+                  div(u) = 0
 
 Which, in weak form reads:
 
- (v, u) - (div(K*v), p) = - (K*v, p*n)_N  for all v
-            (q, div(u)) = 0               for all q
+ (v, Kinv*u) - (div(v), p) = - (v, p*n)_N  for all v
+               (q, div(u)) = 0             for all q
 """
 
 __author__    = "Harish Narayanan (harish@simula.no)"
@@ -34,19 +34,18 @@ V = BDM + DG
 (u, p) = TrialFunctions(V)
 (v, q) = TestFunctions(V)
 
-# Construct a spatially-varying permeability matrix
-# FIXME: The following doesn't work for spatially-varying expressions
-k11 = Constant(1.0)
-k12 = Constant(0.0)
-k21 = Constant(0.0)
-k22 = Constant(1.0)
+# Construct a spatially-varying permeability matrix (inverse)
+kinv11 = Expression("1.0 - x[0]/2.0")
+kinv12 = Constant(0.0)
+kinv21 = Constant(0.0)
+kinv22 = Expression("1.0 - x[0]/2.0")
+Kinv = as_matrix(((kinv11, kinv12), (kinv21, kinv22)))
+
+pbar = PressureBC()
 f = Constant(0.0)
 
-K = as_matrix(((k11, k12), (k21, k22)))
-pbar = PressureBC()
-
-a = dot(v, u)*dx - div(K*v)*p*dx + q*div(u)*dx
-L = q*f*dx - inner(K*v, pbar*n)*ds
+a = dot(Kinv*v, u)*dx - div(v)*p*dx + q*div(u)*dx
+L = q*f*dx - inner(v, pbar*n)*ds
 
 # Compute solution
 problem = VariationalProblem(a, L)
