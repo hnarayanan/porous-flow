@@ -42,8 +42,8 @@ if not has_cgal():
     exit(0)
 
 # Parameters related to the adaptivity
-TOL = 1.e-4          # Desired error tolerance
-REFINE_RATIO = 0.20  # Refine 10% of the cells in each iteration
+TOL = 5.e-5          # Desired error tolerance
+REFINE_RATIO = 0.22  # Fraction of cells to refine in each iteration
 MAX_ITER = 10        # Maximum number of iterations
 
 # Parameters and boundary conditions related to the physics
