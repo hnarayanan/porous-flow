@@ -19,7 +19,7 @@ __license__   = "GNU GPL Version 3.0"
 from dolfin import *
 
 # Construct a spatially-varying permeability matrix (inverse)
-k = "std::max(exp(-(((x[1] - 0.5 - 0.1*sin(10*x[0]))/0.1)*((x[1] - 0.5 - 0.1*sin(10*x[0]))/0.1))), 0.01) + 1.0"
+k = "1.0/(exp(-(((x[1] - 0.5 - 0.1*sin(10*x[0]))/0.1)*((x[1] - 0.5 - 0.1*sin(10*x[0]))/0.1))) + 1.0)"
 # k = "cos(4*pi*x[1]*x[0])/5.0 + 1.0"
 kinv11 = Expression(k)
 kinv12 = Constant(0.0)
