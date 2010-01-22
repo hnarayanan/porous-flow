@@ -48,7 +48,7 @@ MAX_ITER = 20        # Maximum number of iterations
 
 # Parameters and boundary conditions related to the physics
 # Spatially-varying permeability matrix (inverse)
-k = "std::max(exp(-(((x[1] - 0.5 - 0.1*sin(10*x[0]))/0.1)*((x[1] - 0.5 - 0.1*sin(10*x[0]))/0.1))), 0.01) + 1"
+k = "1.0/(exp(-(((x[1] - 0.5 - 0.1*sin(10*x[0]))/0.1)*((x[1] - 0.5 - 0.1*sin(10*x[0]))/0.1))) + 1.0)"
 # k = "cos(4*pi*x[1]*x[0])/5.0 + 1.0"
 kinv11 = Expression(k)
 kinv12 = Constant(0.0)
