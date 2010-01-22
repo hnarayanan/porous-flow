@@ -43,15 +43,17 @@ if not has_cgal():
 
 # Parameters related to the adaptivity
 TOL = 5.e-5          # Desired error tolerance
-REFINE_RATIO = 0.22  # Fraction of cells to refine in each iteration
+REFINE_RATIO = 0.25  # Fraction of cells to refine in each iteration
 MAX_ITER = 10        # Maximum number of iterations
 
 # Parameters and boundary conditions related to the physics
 # Spatially-varying permeability matrix (inverse)
-kinv11 = Expression("cos(4*pi*x[1])/5.0 + 1.0")
+k = "std::max(exp(-(((x[1] - 0.5 - 0.1*sin(10*x[0]))/0.1)*((x[1] - 0.5 - 0.1*sin(10*x[0]))/0.1))), 0.01) + 1.0"
+# k = "cos(4*pi*x[1]*x[0])/5.0 + 1.0"
+kinv11 = Expression(k)
 kinv12 = Constant(0.0)
 kinv21 = Constant(0.0)
-kinv22 = Expression("cos(4*pi*x[1])/5.0 + 1.0")
+kinv22 = Expression(k)
 Kinv = as_matrix(((kinv11, kinv12), (kinv21, kinv22)))
 
 # Pressure boundary condition
@@ -88,7 +90,7 @@ for level in xrange(MAX_ITER):
     # Define the required functions
     (u, p) = TrialFunctions(V)
     (v, q) = TestFunctions(V)
-    pbar = PressureBC() # Given pressure b.c.
+    pbar = PressureBC()
 
     # Pose primal problem
     a_primal = a(v, q, u, p)
@@ -146,6 +148,7 @@ for level in xrange(MAX_ITER):
     # plot(R2, title="Residual of the mass conservation equation")
 
     # Compute the derivatives of the solutions of the adjoint problem
+    # FIXME: The following projects might do something strange
     Dw_h = project(div(w_h_proj), P0s)
     Dr_h = project(grad(r_h_proj), P0v)
 
