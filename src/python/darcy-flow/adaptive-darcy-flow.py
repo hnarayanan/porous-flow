@@ -42,7 +42,7 @@ if not has_cgal():
     exit(0)
 
 # Parameters related to the adaptivity
-TOL = 5.e-5          # Desired error tolerance
+TOL = 1.e-15         # Desired error tolerance
 REFINE_RATIO = 0.25  # Fraction of cells to refine in each iteration
 MAX_ITER = 10        # Maximum number of iterations
 
@@ -61,10 +61,6 @@ class PressureBC(Expression):
     def eval(self, values, x):
         values[0] = 1.0 - x[0]
 
-# Define the bilinear form
-def a(v, q, u, p):
-    return dot(v, Kinv*u)*dx - div(v)*p*dx + q*div(u)*dx
-
 # Create initial mesh
 mesh = UnitSquare(8, 8)
 n = FacetNormal(mesh)
@@ -79,13 +75,13 @@ for level in xrange(MAX_ITER):
     # FIXME: Continuous function spaces used in order to drive
     # residual to 0. The other BDM + DG set works as well, just that
     # the indicators won't be driven to very small values.
-    # BDM = FunctionSpace(mesh, "BDM", 1)
-    # DG = FunctionSpace(mesh, "DG", 0)
-    # V = BDM + DG
+    BDM = FunctionSpace(mesh, "BDM", 2)
+    DG = FunctionSpace(mesh, "DG", 1)
+    V = BDM + DG
 
-    P2 = VectorFunctionSpace(mesh, "CG", 2)
-    P1 = FunctionSpace(mesh, "CG", 1)
-    V = P2 + P1
+    # P2 = VectorFunctionSpace(mesh, "CG", 2)
+    # P1 = FunctionSpace(mesh, "CG", 1)
+    # V  = P2 + P1
 
     # Define the required functions
     (u, p) = TrialFunctions(V)
@@ -93,7 +89,7 @@ for level in xrange(MAX_ITER):
     pbar = PressureBC()
 
     # Pose primal problem
-    a_primal = a(v, q, u, p)
+    a_primal = dot(v, Kinv*u)*dx - div(v)*p*dx + q*div(u)*dx
     L_primal = - inner(v, pbar*n)*ds
 
     # Compute primal solution
@@ -149,8 +145,8 @@ for level in xrange(MAX_ITER):
 
     # Compute the derivatives of the solutions of the adjoint problem
     # FIXME: The following projects might do something strange
-    Dw_h = project(div(w_h_proj), P0s)
-    Dr_h = project(grad(r_h_proj), P0v)
+    Dw_h = project(div(w_h), P0s)
+    Dr_h = project(grad(r_h), P0v)
 
     # plot(Dw_h, title="Divergence of the adjoint velocity")
     # plot(Dr_h, title="Gradient of the adjoint pressure")
