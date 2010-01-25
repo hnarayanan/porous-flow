@@ -42,14 +42,15 @@ if not has_cgal():
     exit(0)
 
 # Parameters related to the adaptivity
-TOL = 1.e-15         # Desired error tolerance
-REFINE_RATIO = 0.25  # Fraction of cells to refine in each iteration
+TOL = 4e-14          # Desired error tolerance
+REFINE_RATIO = 0.50  # Fraction of cells to refine in each iteration
 MAX_ITER = 10        # Maximum number of iterations
 
 # Parameters and boundary conditions related to the physics
 # Spatially-varying permeability matrix (inverse)
-k = "std::max(exp(-(((x[1] - 0.5 - 0.1*sin(10*x[0]))/0.1)*((x[1] - 0.5 - 0.1*sin(10*x[0]))/0.1))), 0.01) + 1.0"
-# k = "cos(4*pi*x[1]*x[0])/5.0 + 1.0"
+k = "1.0/(exp(-(((x[1] - 0.5 - 0.1*sin(10*x[0]))/0.1)*((x[1] - 0.5 - 0.1*sin(10*x[0]))/0.1))) + 1.0)"
+# k = "cos(4*pi*x[1])/5.0 + 1.0"
+# k = "1.0"
 kinv11 = Expression(k)
 kinv12 = Constant(0.0)
 kinv21 = Constant(0.0)
@@ -62,12 +63,18 @@ class PressureBC(Expression):
         values[0] = 1.0 - x[0]
 
 # Create initial mesh
-mesh = UnitSquare(8, 8)
+mesh = UnitSquare(4, 4)
 n = FacetNormal(mesh)
+
+# Create fine mesh and function spaces for gauging error
+mesh_fine = UnitSquare(128, 128)
+BDM_fine  = FunctionSpace(mesh_fine, "BDM", 2)
+DG_fine   = FunctionSpace(mesh_fine, "DG", 1)
+V_fine    = BDM_fine + DG_fine
 
 # Plot the permeability inverse to make some sense of subsequent
 # solutions
-# plot(kinv11, title="Inverse permeability magnitude", mesh=mesh)
+plot(kinv11, title="Inverse permeability magnitude", mesh=mesh_fine)
 
 # Start the adaptive algorithm
 for level in xrange(MAX_ITER):
@@ -89,7 +96,7 @@ for level in xrange(MAX_ITER):
     pbar = PressureBC()
 
     # Pose primal problem
-    a_primal = dot(v, Kinv*u)*dx - div(v)*p*dx + q*div(u)*dx
+    a_primal = inner(v, Kinv*u)*dx - div(v)*p*dx + q*div(u)*dx
     L_primal = - inner(v, pbar*n)*ds
 
     # Compute primal solution
@@ -112,11 +119,19 @@ for level in xrange(MAX_ITER):
     # Pose adjoint problem with some arbitrary goal functional. Note
     # that playing with different forms of the goal results in
     # different interesting results
+
+    goal_boundary = compile_subdomains("x[0] == 1.0")
+    boundary = MeshFunction("uint", mesh, mesh.topology().dim() - 1)
+    boundary.set_all(1)
+    goal_boundary.mark(boundary, 0)
+
     a_adjoint = adjoint(a_primal)
-    L_adjoint = inner(grad(u_h), grad(v))*dx
+    # L_adjoint = inner(grad(u_h), grad(v))*dx
+    # L_adjoint = inner(u_h, v)*dx
+    L_adjoint = inner(v, n)*ds(0)
 
     print "Solve adjoint problem"
-    problem_adjoint = VariationalProblem(a_adjoint, L_adjoint)
+    problem_adjoint = VariationalProblem(a_adjoint, L_adjoint, exterior_facet_domains = boundary)
     (w_h, r_h) = problem_adjoint.solve().split()
 
     # Project w_h for post-processing
@@ -135,10 +150,11 @@ for level in xrange(MAX_ITER):
     # Calculate the residuals and project them obtain constant values
     # on cells. FIXME: Perform integration by parts by hand instead of
     # using project.
-    print "Calculating and projecting residuals"
-    P1 = VectorFunctionSpace(mesh, "CG", 1)
-    R1 = project(Kinv*u_h + grad(p_h), P0v)
-    R2 = project(div(u_h), P0s)
+    print "Calculating residuals on a finer mesh and projecting them back"
+    u_h_fine = interpolate(u_h, BDM_fine)
+    p_h_fine = interpolate(p_h, DG_fine)
+    R1 = project(Kinv*u_h_fine + grad(p_h_fine), P0v)
+    R2 = project(div(u_h_fine), P0s)
 
     # plot(R1, title="Residual of the Darcy flow equation")
     # plot(R2, title="Residual of the mass conservation equation")
@@ -192,6 +208,6 @@ for level in xrange(MAX_ITER):
 
     # Plot mesh
     plot(mesh)
-
+    
 # Hold plot
 interactive()
