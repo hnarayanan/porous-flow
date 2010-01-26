@@ -6,6 +6,8 @@ syntax: glob
 *.pyo
 *.vtu
 .sconsign.dblite
+*.o
+src/cpp/demo
 
 syntax: regexp
 .*\#.*\#$
