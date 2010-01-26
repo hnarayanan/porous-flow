@@ -42,9 +42,9 @@ if not has_cgal():
     exit(0)
 
 # Parameters related to the adaptivity
-TOL = 4e-14          # Desired error tolerance
+TOL = 1e-15          # Desired error tolerance
 REFINE_RATIO = 0.50  # Fraction of cells to refine in each iteration
-MAX_ITER = 10        # Maximum number of iterations
+MAX_ITER = 5         # Maximum number of iterations
 
 # Parameters and boundary conditions related to the physics
 # Spatially-varying permeability matrix (inverse)
