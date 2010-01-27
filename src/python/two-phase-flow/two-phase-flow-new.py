@@ -59,9 +59,10 @@ __copyright__ = "Copyright (C) 2010 Garth N. Wells and Harish Narayanan"
 __license__   = "GNU GPL Version 3.0"
 
 from dolfin import *
+parameters.optimize=True
 
 # Computational domain and geometry information
-mesh = UnitSquare(16, 16)
+mesh = UnitSquare(32, 32)
 n = FacetNormal(mesh)
 boundary = MeshFunction("uint", mesh, mesh.topology().dim() - 1)
 boundary.set_all(5)
@@ -89,7 +90,7 @@ def F(s):
     return s**2/(s**2 + mu_rel*(1 - s)**2)
 
 # Time step
-dt = 0.01
+dt = 0.001
 
 # Pressure boundary condition
 class PressureBC(Expression):
@@ -110,9 +111,12 @@ class NormalVelocityBC(Expression):
 degree = 1
 BDM = FunctionSpace(mesh, "BDM", degree)
 DG  = FunctionSpace(mesh, "DG",  degree - 1)
-CG  = FunctionSpace(mesh, "CG",  degree)
-mixed_space = MixedFunctionSpace([BDM, DG, CG])
+# CG  = FunctionSpace(mesh, "CG",  degree)
+mixed_space = MixedFunctionSpace([BDM, DG, DG]) #FIXME: Using DG for the saturation
+# For projecting fields
+P1s  = FunctionSpace(mesh, "CG",  1)
 P1v  = VectorFunctionSpace(mesh, "CG",  1)
+
 
 # Functions
 V   = TestFunction(mixed_space)
@@ -138,20 +142,15 @@ a1 = derivative(L1, U, dU)
 L2 = q*div(u)*dx
 a2 = derivative(L2, U, dU)
 
-epsilon = 0.01
-L3 = r*(s - s0)*dx - dt*inner(grad(r), F(s_mid)*u)*dx + dt*r*inner(F(sbar)*u, n)*ds(1) \
-    + epsilon*dt*inner(grad(r), grad(s_mid))*dx
-a3 = derivative(L3, U, dU)
-
-# FIXME: The stabilisation term above should look like the following
-#
 # Upwind normal velocity: (dot(v, n) + |dot(v, n)|)/2.0 
 # (using velocity from previous step on facets)
-# un   = (dot(u0, n) + sqrt(dot(u0, n)*dot(u0, n)))/2.0
-# un_h = (dot(u0, n) - sqrt(dot(u0, n)*dot(u0, n)))/2.0
-# epsilon = 1.0
-#
-# stabilisation = dt*inner(jump(r), un('+')*F(s_mid)('+') - un('-')*F(s_mid)('-'))*dS
+un   = (dot(u0, n) + sqrt(dot(u0, n)*dot(u0, n)))/2.0
+un_h = (dot(u0, n) - sqrt(dot(u0, n)*dot(u0, n)))/2.0
+stabilisation = dt*inner(jump(r), un('+')*F(s_mid)('+') - un('-')*F(s_mid)('-'))*dS
+
+L3 = r*(s - s0)*dx - dt*inner(grad(r), F(s_mid)*u)*dx + dt*r*inner(F(sbar)*u, n)*ds(1) \
+    + stabilisation
+a3 = derivative(L3, U, dU)
 
 L = L1 + L2 + L3
 a = a1 + a2 + a3
@@ -163,17 +162,17 @@ p_file = File("pressure.pvd")
 s_file = File("saturation.pvd")
 
 t = 0.0
-T = 200*dt
+T = 2000*dt
 while t < T:
     t += dt
     U0.assign(U)
     problem.solve(U)
     u, p, s = U.split() 
     uh = project(u, P1v)
+    sh = project(s, P1s)
 #    plot(uh, title="Velocity")
 #    plot(p, title="Pressure")
 #    plot(s, title="Saturation")
-    
     u_file << uh
     p_file << p
-    s_file << s
+    s_file << sh
