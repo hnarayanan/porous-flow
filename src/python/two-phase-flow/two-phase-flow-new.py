@@ -70,13 +70,13 @@ left.mark(boundary, 1)
 right.mark(boundary, 2)
 bottom.mark(boundary, 3)
 top.mark(boundary, 4)
-                        
+
 # Physical parameters, functional forms and boundary conditions
 # Relative viscosity of water w.r.t. crude oil
 mu_rel = 0.2
 
 # Spatially-varying permeability matrix (inverse)
-kinv = Expression("1.0/(exp(-(((x[1] - 0.5 - 0.1*sin(10*x[0]))/0.1)*((x[1] - 0.5 - 0.1*sin(10*x[0]))/0.1))) + 1.0)")
+kinv = Expression("1.0/std::max(exp(-pow((x[1] - 0.5 - 0.1*sin(10*x[0]))/0.1, 2.0)), 0.01)")
 zero = Expression("0.0")
 Kinv = as_matrix(((kinv, zero), (zero, kinv)))
 
@@ -138,7 +138,7 @@ a1 = derivative(L1, U, dU)
 L2 = q*div(u)*dx
 a2 = derivative(L2, U, dU)
 
-epsilon = 1.0
+epsilon = 0.01
 L3 = r*(s - s0)*dx - dt*inner(grad(r), F(s_mid)*u)*dx + dt*r*inner(F(sbar)*u, n)*ds(1) \
     + epsilon*dt*inner(grad(r), grad(s_mid))*dx
 a3 = derivative(L3, U, dU)
@@ -163,7 +163,7 @@ p_file = File("pressure.pvd")
 s_file = File("saturation.pvd")
 
 t = 0.0
-T = 50*dt
+T = 200*dt
 while t < T:
     t += dt
     U0.assign(U)
