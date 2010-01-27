@@ -19,11 +19,15 @@ relation: u_j = - (k_rj(s)/mu_j)*K*grad(p).
 In weak form, the above equation set reads: Find u, p, s in V, such
 that,
 
-   (v, (lambda*K)^(-1)*u) - (div(v), p) = - (v, p*n)_N    (1)
-      (q, div(u)) = 0 or - (grad(q), u) = - (q, u.n)_N    (2)
-            (r, ds/dt) - (grad(r), F*u) = - (r, F*u.n)_N  (3)
+   (v, (lambda*K)^(-1)*u) - (div(v), p) = - (v, pbar*n)_N          (1)
+      (q, div(u)) = 0 or - (grad(q), u) = - (q, ubar.n)_N          (2)
+            (r, ds/dt) - (grad(r), F*u) = - (r, F(sbar)*ubar.n)_N  (3)
                              
 for all v, q, r in V'.
+
+Model problem:
+
+Unit square, with the following boundary conditions.
 
 This implementation includes functional forms from the deal.II demo
 available at: http://www.dealii.org/6.2.1/doxygen/deal.II/step_21.html
@@ -58,16 +62,14 @@ Kinv = as_matrix(((kinv, zero), (zero, kinv)))
 
 # Total mobility
 def lmbdainv(s):
-    s = variable(s)
     return 1.0/((1.0/mu_rel)*s**2 + (1 - s)**2)
 
 # Fractional flow function
 def F(s):
-    s = variable(s)
     return s**2/(s**2 + mu_rel*(1 - s)**2)
 
 # Time step
-dt = 0.1
+dt = 0.001
 
 # Pressure boundary condition
 class PressureBC(Expression):
@@ -78,6 +80,11 @@ class PressureBC(Expression):
 class SaturationBC(Expression):
     def eval(self, values, x):
         values[0] = 1.0 - x[0]
+
+# Normal velocity boundary condition
+class NormalVelocityBC(Expression):
+    def eval(self, values, x):
+        values[0] = 0.0
 
 # Function spaces
 degree = 1
@@ -102,6 +109,7 @@ u0, p0, s0 = split(U0)
 
 pbar = PressureBC()
 sbar = SaturationBC()
+unbar = NormalVelocityBC()
 
 s_mid = 0.5*(s0 + s)
 
@@ -121,6 +129,10 @@ a = a1 + a2 + a3
 
 problem = VariationalProblem(a, L, exterior_facet_domains=boundary, nonlinear=True)
 
+u_file = File("velocity.pvd")
+p_file = File("pressure.pvd")
+s_file = File("saturation.pvd")
+
 t = 0.0
 T = 50*dt
 while t < T:
@@ -128,6 +140,11 @@ while t < T:
     U0.assign(U)
     problem.solve(U)
     u, p, s = U.split() 
-#    uh = project(u, P1v)
-    plot(s, title="Saturation")
-
+    uh = project(u, P1v)
+#    plot(uh, title="Velocity")
+#    plot(p, title="Pressure")
+#    plot(s, title="Saturation")
+    
+    u_file << uh
+    p_file << p
+    s_file << s
