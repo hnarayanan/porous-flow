@@ -43,7 +43,7 @@ s(x, 0) = 0 in \Omega
 
 Boundary Conditions:
 p(x, t) = 1 - x on \Gamma_{1, 2, 3, 4}
-s(x, t) = 1 on \Gamma_1
+s(x, t) = 1 on \Gamma_1 if u.n < 0
 s(x, t) = 0 on \Gamma_{2, 3, 4} if u.n < 0
 
 Parameters:
@@ -140,9 +140,18 @@ a2 = derivative(L2, U, dU)
 
 epsilon = 1.0
 L3 = r*(s - s0)*dx - dt*inner(grad(r), F(s_mid)*u)*dx + dt*r*inner(F(sbar)*u, n)*ds(1) \
-    + epsilon*dt*inner(grad(r), grad(s_mid))*dx #FIXME: Improve stabilisation term
-
+    + epsilon*dt*inner(grad(r), grad(s_mid))*dx
 a3 = derivative(L3, U, dU)
+
+# FIXME: The stabilisation term above should look like the following
+#
+# Upwind normal velocity: (dot(v, n) + |dot(v, n)|)/2.0 
+# (using velocity from previous step on facets)
+# un   = (dot(u0, n) + sqrt(dot(u0, n)*dot(u0, n)))/2.0
+# un_h = (dot(u0, n) - sqrt(dot(u0, n)*dot(u0, n)))/2.0
+# epsilon = 1.0
+#
+# stabilisation = dt*inner(jump(r), un('+')*F(s_mid)('+') - un('-')*F(s_mid)('-'))*dS
 
 L = L1 + L2 + L3
 a = a1 + a2 + a3
