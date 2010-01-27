@@ -9,6 +9,7 @@ syntax: glob
 *.o
 *.nb
 src/cpp/demo
+.DS_Store
 
 syntax: regexp
 .*\#.*\#$
