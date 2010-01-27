@@ -156,6 +156,9 @@ L = L1 + L2 + L3
 a = a1 + a2 + a3
 
 problem = VariationalProblem(a, L, exterior_facet_domains=boundary, nonlinear=True)
+problem.parameters["newton_solver"]["absolute_tolerance"] = 1e-12 
+problem.parameters["newton_solver"]["relative_tolerance"] = 1e-16
+problem.parameters["newton_solver"]["maximum_iterations"] = 100
 
 u_file = File("velocity.pvd")
 p_file = File("pressure.pvd")
