@@ -2,6 +2,8 @@
 This program solves pressure-driven, time-dependent flow of two phases
 through porous media.
 
+Strong form:
+
     (lambda(s)*K)^(-1)*u + grad(p) = 0
                             div(u) = 0
               ds/dt + u.grad(F(s)) = 0,
@@ -16,18 +18,36 @@ where,
 One can then can post-calculate the velocity of each phase using the
 relation: u_j = - (k_rj(s)/mu_j)*K*grad(p).
 
-In weak form, the above equation set reads: Find u, p, s in V, such
-that,
+Weak form:
 
-   (v, (lambda*K)^(-1)*u) - (div(v), p) = - (v, pbar*n)_N          (1)
-      (q, div(u)) = 0 or - (grad(q), u) = - (q, ubar.n)_N          (2)
-            (r, ds/dt) - (grad(r), F*u) = - (r, F(sbar)*ubar.n)_N  (3)
+Find u, p, s in V, such that,
+
+   (v, (lambda*K)^(-1)*u) - (div(v), p) = - (v, pbar*n)_N       (1)
+      (q, div(u)) = 0 or - (grad(q), u) = - (q, ubar.n)_N       (2)
+            (r, ds/dt) - (grad(r), F*u) = - (r, F(sbar)*u.n)_N  (3)
                              
 for all v, q, r in V'.
 
 Model problem:
 
-Unit square, with the following boundary conditions.
+ |----4----|
+ |         |
+ 1         2
+ |         |
+ |----3----|
+
+Initial Conditions:
+u(x, 0) = 0
+p(x, 0) = 0
+s(x, 0) = 0 in \Omega
+
+Boundary Conditions:
+p(x, t) = 1 - x on \Gamma_{1, 2, 3, 4}
+s(x, t) = 1 on \Gamma_1
+s(x, t) = 0 on \Gamma_{2, 3, 4} if u.n < 0
+
+Parameters:
+mu_rel, Kinv, lmbdainv, F, dt, T
 
 This implementation includes functional forms from the deal.II demo
 available at: http://www.dealii.org/6.2.1/doxygen/deal.II/step_21.html
@@ -46,11 +66,11 @@ n = FacetNormal(mesh)
 boundary = MeshFunction("uint", mesh, mesh.topology().dim() - 1)
 boundary.set_all(5)
 left, right, bottom, top = compile_subdomains(["x[0] == 0.0", "x[0] == 1.0", "x[1] == 0.0", "x[1] == 1.0"])
-left.mark(boundary, 1)       # |----4----|
-right.mark(boundary, 2)      # |         |
-bottom.mark(boundary, 3)     # 1         2
-top.mark(boundary, 4)        # |         |
-                             # |----3----|
+left.mark(boundary, 1)
+right.mark(boundary, 2)
+bottom.mark(boundary, 3)
+top.mark(boundary, 4)
+                        
 # Physical parameters, functional forms and boundary conditions
 # Relative viscosity of water w.r.t. crude oil
 mu_rel = 0.2
@@ -69,7 +89,7 @@ def F(s):
     return s**2/(s**2 + mu_rel*(1 - s)**2)
 
 # Time step
-dt = 0.001
+dt = 0.01
 
 # Pressure boundary condition
 class PressureBC(Expression):
@@ -104,9 +124,6 @@ v, q, r = split(V)
 u, p, s = split(U)
 u0, p0, s0 = split(U0)
 
-# FIXME: Might have to do some foo = variable(foo) stuff here. Not
-# really sure how derivative is working without it.
-
 pbar = PressureBC()
 sbar = SaturationBC()
 unbar = NormalVelocityBC()
@@ -121,7 +138,10 @@ a1 = derivative(L1, U, dU)
 L2 = q*div(u)*dx
 a2 = derivative(L2, U, dU)
 
-L3 = r*(s - s0)*dx - dt*inner(grad(r), F(s_mid)*u)*dx + dt*r*inner(F(sbar)*u, n)*ds(1)
+epsilon = 1.0
+L3 = r*(s - s0)*dx - dt*inner(grad(r), F(s_mid)*u)*dx + dt*r*inner(F(sbar)*u, n)*ds(1) \
+    + epsilon*dt*inner(grad(r), grad(s_mid))*dx #FIXME: Improve stabilisation term
+
 a3 = derivative(L3, U, dU)
 
 L = L1 + L2 + L3
