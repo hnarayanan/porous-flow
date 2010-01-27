@@ -7,6 +7,7 @@ syntax: glob
 *.vtu
 .sconsign.dblite
 *.o
+*.nb
 src/cpp/demo
 
 syntax: regexp
