@@ -62,7 +62,7 @@ from dolfin import *
 parameters.optimize=True
 
 # Computational domain and geometry information
-mesh = UnitSquare(32, 32)
+mesh = UnitSquare(40, 40)
 n = FacetNormal(mesh)
 boundary = MeshFunction("uint", mesh, mesh.topology().dim() - 1)
 boundary.set_all(5)
@@ -146,7 +146,8 @@ a2 = derivative(L2, U, dU)
 # (using velocity from previous step on facets)
 un   = (dot(u0, n) + sqrt(dot(u0, n)*dot(u0, n)))/2.0
 un_h = (dot(u0, n) - sqrt(dot(u0, n)*dot(u0, n)))/2.0
-stabilisation = dt*inner(jump(r), un('+')*F(s_mid)('+') - un('-')*F(s_mid)('-'))*dS
+stabilisation = dt*inner(jump(r), un('+')*F(s_mid)('+') - un('-')*F(s_mid)('-'))*dS \
+    + dt*inner(r, un_h*sbar)*ds
 
 L3 = r*(s - s0)*dx - dt*inner(grad(r), F(s_mid)*u)*dx + dt*r*inner(F(sbar)*u, n)*ds(1) \
     + stabilisation
@@ -165,12 +166,12 @@ p_file = File("pressure.pvd")
 s_file = File("saturation.pvd")
 
 t = 0.0
-T = 2000*dt
+T = 1000*dt
 while t < T:
     t += dt
     U0.assign(U)
     problem.solve(U)
-    u, p, s = U.split() 
+    u, p, s = U.split()
     uh = project(u, P1v)
     sh = project(s, P1s)
 #    plot(uh, title="Velocity")
