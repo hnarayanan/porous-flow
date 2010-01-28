@@ -156,6 +156,8 @@ a3 = derivative(L3, U, dU)
 L = L1 + L2 + L3
 a = a1 + a2 + a3
 
+# FIXME: This is an expensive approach for repeated solve.
+#        See approach used for Cahn-Hilliard demo.
 problem = VariationalProblem(a, L, exterior_facet_domains=boundary, nonlinear=True)
 problem.parameters["newton_solver"]["absolute_tolerance"] = 1e-12 
 problem.parameters["newton_solver"]["relative_tolerance"] = 1e-16

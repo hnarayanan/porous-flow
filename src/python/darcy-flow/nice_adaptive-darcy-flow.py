@@ -33,6 +33,9 @@ __license__   = "GNU GPL Version 3.0"
 from dolfin import *
 from numpy import array, sort, zeros, max, abs
 
+# Use optimisation for FFC code
+parameters.optimize = True
+
 # This program does not run in parallel
 not_working_in_parallel("This program")
 

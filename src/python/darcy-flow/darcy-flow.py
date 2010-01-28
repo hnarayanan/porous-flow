@@ -18,6 +18,9 @@ __license__   = "GNU GPL Version 3.0"
 
 from dolfin import *
 
+# Use optimisation for FFC code
+parameters.optimize = True
+
 # Construct a spatially-varying permeability matrix (inverse)
 k = "1.0/(exp(-(((x[1] - 0.5 - 0.1*sin(10*x[0]))/0.1)*((x[1] - 0.5 - 0.1*sin(10*x[0]))/0.1))) + 1.0)"
 # k = "cos(4*pi*x[1]*x[0])/5.0 + 1.0"
@@ -37,10 +40,10 @@ def a(v, q, u, p):
     return dot(Kinv*v, u)*dx - div(v)*p*dx + q*div(u)*dx
 
 # Create mesh and define function spaces
-mesh = UnitSquare(32, 32)
+mesh = UnitSquare(64, 64)
 n = FacetNormal(mesh)
-BDM = FunctionSpace(mesh, "BDM", 1)
-DG = FunctionSpace(mesh, "DG", 0)
+BDM = FunctionSpace(mesh, "BDM", 3)
+DG = FunctionSpace(mesh, "DG", 2)
 V = BDM + DG
 
 # Define variational problem

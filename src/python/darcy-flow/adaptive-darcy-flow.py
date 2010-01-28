@@ -36,6 +36,9 @@ from numpy import array, sort, zeros, max, abs
 # This program does not run in parallel
 not_working_in_parallel("This program")
 
+# Use optimisation for FFC code
+parameters.optimize = True
+
 # This program does not work without CGAL
 if not has_cgal():
     print "DOLFIN must be compiled with CGAL to run this program."
