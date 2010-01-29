@@ -62,7 +62,7 @@ from dolfin import *
 parameters.optimize=True
 
 # Computational domain and geometry information
-mesh = UnitSquare(40, 40)
+mesh = UnitSquare(8, 8)
 n = FacetNormal(mesh)
 boundary = MeshFunction("uint", mesh, mesh.topology().dim() - 1)
 boundary.set_all(5)
@@ -90,7 +90,7 @@ def F(s):
     return s**2/(s**2 + mu_rel*(1 - s)**2)
 
 # Time step
-dt = 0.005
+dt = 0.1
 
 # Pressure boundary condition
 class PressureBC(Expression):
@@ -108,14 +108,14 @@ class NormalVelocityBC(Expression):
         values[0] = 0.0
 
 # Function spaces
-degree = 1
-BDM = FunctionSpace(mesh, "BDM", degree)
-DG  = FunctionSpace(mesh, "DG",  degree - 1)
-# CG  = FunctionSpace(mesh, "CG",  degree)
-mixed_space = MixedFunctionSpace([BDM, DG, DG]) #FIXME: Using DG for the saturation
+order = 1
+BDM = FunctionSpace(mesh, "Brezzi-Douglas-Marini", order)
+DG = FunctionSpace(mesh, "Discontinuous Lagrange", order - 1)
+mixed_space = MixedFunctionSpace([BDM, DG, DG])
+
 # For projecting fields
-P1s  = FunctionSpace(mesh, "CG",  1)
-P1v  = VectorFunctionSpace(mesh, "CG",  1)
+P1s = FunctionSpace(mesh, "Lagrange",  1)
+P1v = VectorFunctionSpace(mesh, "Lagrange",  1)
 
 
 # Functions
@@ -168,7 +168,7 @@ p_file = File("pressure.pvd")
 s_file = File("saturation.pvd")
 
 t = 0.0
-T = 1000*dt
+T = 50*dt
 while t < T:
     t += dt
     U0.assign(U)
