@@ -169,18 +169,18 @@ p_file = File("pressure.pvd")
 s_file = File("saturation.pvd")
 
 t = 0.0
-T = 1*dt
+T = 50*dt
 while t < T:
     t += dt
     U0.assign(U)
     problem.solve(U)
-    #u, p, s = U.split()
-    #uh = project(u, P1v)
-    #sh = project(s, P1s)
-#    plot(uh, title="Velocity")
-#    plot(p, title="Pressure")
-#    plot(s, title="Saturation")
-    #u_file << uh
-    #p_file << p
-    #s_file << s
+    u, p, s = U.split()
+    uh = project(u, P1v)
+    sh = project(s, P1s)
+    plot(uh, title="Velocity")
+    plot(p, title="Pressure")
+    plot(s, title="Saturation")
+    u_file << uh
+    p_file << p
+    s_file << s
 
