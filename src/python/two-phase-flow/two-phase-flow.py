@@ -184,3 +184,9 @@ while t < T:
     p_file << p
     s_file << s
 
+    # Code which can eventually help to reset S between 0, 1
+    #x = U0.vector().array()
+    #print x
+    #print x[32]
+    #print where(x > 0.2)
+
