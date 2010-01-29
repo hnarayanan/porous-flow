@@ -137,10 +137,8 @@ s_mid = 0.5*(s0 + s)
 # Variational forms and problem
 L1 = inner(v, lmbdainv(s_mid)*Kinv*u)*dx - div(v)*p*dx + inner(v, pbar*n)*ds(1) \
     + inner(v, pbar*n)*ds(2) + inner(v, pbar*n)*ds(3) + inner(v, pbar*n)*ds(4)
-a1 = derivative(L1, U, dU)
 
 L2 = q*div(u)*dx
-a2 = derivative(L2, U, dU)
 
 # Upwind normal velocity: (dot(v, n) + |dot(v, n)|)/2.0 
 # (using velocity from previous step on facets)
@@ -151,16 +149,15 @@ stabilisation = dt*inner(jump(r), un('+')*F(s_mid)('+') - un('-')*F(s_mid)('-'))
 
 L3 = r*(s - s0)*dx - dt*inner(grad(r), F(s_mid)*u)*dx + dt*r*inner(F(sbar)*u, n)*ds(1) \
     + stabilisation
-a3 = derivative(L3, U, dU)
 
 L = L1 + L2 + L3
-a = a1 + a2 + a3
+a = derivative(L, U, dU)
 
 # FIXME: This is an expensive approach for repeated solve.
 #        See approach used for Cahn-Hilliard demo.
 problem = VariationalProblem(a, L, exterior_facet_domains=boundary, nonlinear=True)
 problem.parameters["newton_solver"]["absolute_tolerance"] = 1e-12 
-problem.parameters["newton_solver"]["relative_tolerance"] = 1e-16
+problem.parameters["newton_solver"]["relative_tolerance"] = 1e-6
 problem.parameters["newton_solver"]["maximum_iterations"] = 100
 problem.parameters["reset_jacobian"] = True
 
