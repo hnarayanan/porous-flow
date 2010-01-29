@@ -62,7 +62,7 @@ from dolfin import *
 parameters.optimize=True
 
 # Computational domain and geometry information
-mesh = UnitSquare(8, 8)
+mesh = UnitSquare(64, 64)
 n = FacetNormal(mesh)
 boundary = MeshFunction("uint", mesh, mesh.topology().dim() - 1)
 boundary.set_all(5)
@@ -162,23 +162,25 @@ problem = VariationalProblem(a, L, exterior_facet_domains=boundary, nonlinear=Tr
 problem.parameters["newton_solver"]["absolute_tolerance"] = 1e-12 
 problem.parameters["newton_solver"]["relative_tolerance"] = 1e-16
 problem.parameters["newton_solver"]["maximum_iterations"] = 100
+problem.parameters["reset_jacobian"] = True
 
 u_file = File("velocity.pvd")
 p_file = File("pressure.pvd")
 s_file = File("saturation.pvd")
 
 t = 0.0
-T = 50*dt
+T = 1*dt
 while t < T:
     t += dt
     U0.assign(U)
     problem.solve(U)
-    u, p, s = U.split()
-    uh = project(u, P1v)
-    sh = project(s, P1s)
+    #u, p, s = U.split()
+    #uh = project(u, P1v)
+    #sh = project(s, P1s)
 #    plot(uh, title="Velocity")
 #    plot(p, title="Pressure")
 #    plot(s, title="Saturation")
-    u_file << uh
-    p_file << p
-    s_file << s
+    #u_file << uh
+    #p_file << p
+    #s_file << s
+
