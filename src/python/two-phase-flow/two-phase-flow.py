@@ -90,7 +90,7 @@ def F(s):
     return s**2/(s**2 + mu_rel*(1 - s)**2)
 
 # Time step
-dt = 0.1
+dt = 0.01
 
 # Pressure boundary condition
 class PressureBC(Expression):
