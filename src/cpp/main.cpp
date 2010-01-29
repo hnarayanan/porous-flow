@@ -191,8 +191,8 @@ int main()
 
   // Parameters and functions
   //RandomPermeabilty permeability(mesh);   // permeability
-  //SnakePermeabilty permeability;   
-  Constant permeability(0.01);   
+  SnakePermeabilty permeability;   
+  //Constant permeability(0.01);   
   Function U(Vdarcy);                    // velocity, pressure
   Function u(Vu);                    // velocity
   Source f;                           // Darcy flow source term
