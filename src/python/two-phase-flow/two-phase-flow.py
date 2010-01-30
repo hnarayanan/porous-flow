@@ -63,7 +63,7 @@ from dolfin import *
 parameters.optimize = True
 
 # Computational domain and geometry information
-mesh = UnitSquare(8, 8)
+mesh = UnitSquare(32, 32)
 n = FacetNormal(mesh)
 
 # Physical parameters, functional forms and boundary conditions
@@ -84,8 +84,7 @@ def F(s):
     return s**2/(s**2 + mu_rel*(1 - s)**2)
 
 # Time step
-k = dt = 0.01
-dt = Constant(dt)
+dt = Constant(0.01)
 
 # Pressure boundary condition
 class PressureBC(Expression):
@@ -125,7 +124,6 @@ sbar = SaturationBC(degree=1)
 
 # Variational forms and problem
 L1 = inner(v, lmbdainv(s_mid)*Kinv*u)*dx - div(v)*p*dx + inner(v, pbar*n)*ds
-
 L2 = q*div(u)*dx
 
 # Upwind normal velocity: (inner(v, n) + |inner(v, n)|)/2.0 
@@ -133,11 +131,14 @@ L2 = q*div(u)*dx
 un   = (inner(u0, n) + sqrt(inner(u0, n)*inner(u0, n)))/2.0
 un_h = (inner(u0, n) - sqrt(inner(u0, n)*inner(u0, n)))/2.0
 stabilisation = dt('+')*inner(jump(r), un('+')*F(s_mid)('+') - un('-')*F(s_mid)('-'))*dS \
-    + dt*r*un_h*sbar*ds
+              + dt*r*un_h*sbar*ds
 L3 = r*(s - s0)*dx - dt*inner(grad(r), F(s_mid)*u)*dx + dt*r*F(s_mid)*un*ds \
     + stabilisation
 
+# Total L
 L = L1 + L2 + L3
+
+# Jacobian
 a = derivative(L, U, dU)
 
 # FIXME: This is an expensive approach for repeated solve.
@@ -145,7 +146,7 @@ a = derivative(L, U, dU)
 problem = VariationalProblem(a, L, nonlinear=True)
 problem.parameters["newton_solver"]["absolute_tolerance"] = 1e-12 
 problem.parameters["newton_solver"]["relative_tolerance"] = 1e-6
-problem.parameters["newton_solver"]["maximum_iterations"] = 100
+problem.parameters["newton_solver"]["maximum_iterations"] = 10
 # FIXME: The following parameter doesn't work with Harish's FEniCS
 #        installation
 # problem.parameters["reset_jacobian"] = True
@@ -155,9 +156,9 @@ p_file = File("pressure.pvd")
 s_file = File("saturation.pvd")
 
 t = 0.0
-T = 250*k
+T = 250*float(dt)
 while t < T:
-    t += k
+    t += float(dt)
     U0.assign(U)
     problem.solve(U)
     u, p, s = U.split()
