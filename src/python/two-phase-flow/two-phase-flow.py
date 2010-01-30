@@ -64,13 +64,6 @@ parameters.optimize=True
 # Computational domain and geometry information
 mesh = UnitSquare(8, 8)
 n = FacetNormal(mesh)
-boundary = MeshFunction("uint", mesh, mesh.topology().dim() - 1)
-boundary.set_all(5)
-left, right, bottom, top = compile_subdomains(["x[0] == 0.0", "x[0] == 1.0", "x[1] == 0.0", "x[1] == 1.0"])
-left.mark(boundary, 1)
-right.mark(boundary, 2)
-bottom.mark(boundary, 3)
-top.mark(boundary, 4)
 
 # Physical parameters, functional forms and boundary conditions
 # Relative viscosity of water w.r.t. crude oil
@@ -137,8 +130,7 @@ unbar = NormalVelocityBC()
 s_mid = 0.5*(s0 + s)
 
 # Variational forms and problem
-L1 = inner(v, lmbdainv(s_mid)*Kinv*u)*dx - div(v)*p*dx + inner(v, pbar*n)*ds(1) \
-    + inner(v, pbar*n)*ds(2) + inner(v, pbar*n)*ds(3) + inner(v, pbar*n)*ds(4)
+L1 = inner(v, lmbdainv(s_mid)*Kinv*u)*dx - div(v)*p*dx + inner(v, pbar*n)*ds
 
 L2 = q*div(u)*dx
 
@@ -147,10 +139,8 @@ L2 = q*div(u)*dx
 un   = (dot(u0, n) + sqrt(dot(u0, n)*dot(u0, n)))/2.0
 un_h = (dot(u0, n) - sqrt(dot(u0, n)*dot(u0, n)))/2.0
 stabilisation = dt*inner(jump(r), un('+')*F(s_mid)('+') - un('-')*F(s_mid)('-'))*dS \
-    + dt*inner(r, un_h*sbar)*ds(1)
-
-L3 = r*(s - s0)*dx - dt*inner(grad(r), F(s_mid)*u)*dx + dt*r*F(s_mid)*un*ds(1) \
-    + dt*r*F(s_mid)*un*ds(2) \
+    + dt*inner(r, un_h*sbar)*ds
+L3 = r*(s - s0)*dx - dt*inner(grad(r), F(s_mid)*u)*dx + dt*r*F(s_mid)*un*ds \
     + stabilisation
 
 L = L1 + L2 + L3
@@ -158,7 +148,7 @@ a = derivative(L, U, dU)
 
 # FIXME: This is an expensive approach for repeated solve.
 #        See approach used for Cahn-Hilliard demo.
-problem = VariationalProblem(a, L, exterior_facet_domains=boundary, nonlinear=True)
+problem = VariationalProblem(a, L, nonlinear=True)
 problem.parameters["newton_solver"]["absolute_tolerance"] = 1e-12 
 problem.parameters["newton_solver"]["relative_tolerance"] = 1e-6
 problem.parameters["newton_solver"]["maximum_iterations"] = 100
