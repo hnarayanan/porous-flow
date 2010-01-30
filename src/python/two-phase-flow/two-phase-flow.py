@@ -14,7 +14,6 @@ where,
          F(s) = k_rw(s)/mu_w/(k_rw(s)/mu_w + k_ro(s)/mu_o)
               = s^2/(s^2 + mu_rel*(1 - s)^2).
 
-
 One can then can post-calculate the velocity of each phase using the
 relation: u_j = - (k_rj(s)/mu_j)*K*grad(p).
 
@@ -23,18 +22,18 @@ Weak form:
 Find u, p, s in V, such that,
 
    (v, (lambda*K)^(-1)*u) - (div(v), p) = - (v, pbar*n)_N       (1)
-      (q, div(u)) = 0 or - (grad(q), u) = - (q, ubar.n)_N       (2)
-            (r, ds/dt) - (grad(r), F*u) = - (r, F(sbar)*u.n)_N  (3)
+                            (q, div(u)) = 0                     (2)
+            (r, ds/dt) - (grad(r), F*u) = - (r, F*u.n)_N        (3)
                              
 for all v, q, r in V'.
 
 Model problem:
 
- |----4----|
+ -----4-----
  |         |
  1         2
  |         |
- |----3----|
+ -----3-----
 
 Initial Conditions:
 u(x, 0) = 0
@@ -44,7 +43,7 @@ s(x, 0) = 0 in \Omega
 Boundary Conditions:
 p(x, t) = 1 - x on \Gamma_{1, 2, 3, 4}
 s(x, t) = 1 on \Gamma_1 if u.n < 0
-s(x, t) = 0 on \Gamma_{2, 3, 4} if u.n < 0
+s(x, t) = 0 on \Gamma_{2, 3, 4} if u.n > 0
 
 Parameters:
 mu_rel, Kinv, lmbdainv, F, dt, T
@@ -59,7 +58,9 @@ __copyright__ = "Copyright (C) 2010 Garth N. Wells and Harish Narayanan"
 __license__   = "GNU GPL Version 3.0"
 
 from dolfin import *
-parameters.optimize=True
+
+# Optimise compilation of forms
+parameters.optimize = True
 
 # Computational domain and geometry information
 mesh = UnitSquare(8, 8)
@@ -83,7 +84,8 @@ def F(s):
     return s**2/(s**2 + mu_rel*(1 - s)**2)
 
 # Time step
-dt = 0.01
+k = dt = 0.01
+dt = Constant(dt)
 
 # Pressure boundary condition
 class PressureBC(Expression):
@@ -96,11 +98,6 @@ class SaturationBC(Expression):
         if x[0] < DOLFIN_EPS:
             values[0] =  1.0
 
-# Normal velocity boundary condition
-class NormalVelocityBC(Expression):
-    def eval(self, values, x):
-        values[0] = 0.0
-
 # Function spaces
 order = 1
 BDM = FunctionSpace(mesh, "Brezzi-Douglas-Marini", order)
@@ -111,8 +108,7 @@ mixed_space = MixedFunctionSpace([BDM, DG, DG])
 P1s = FunctionSpace(mesh, "Lagrange",  1)
 P1v = VectorFunctionSpace(mesh, "Lagrange",  1)
 
-
-# Functions
+# Function spaces and functions
 V   = TestFunction(mixed_space)
 dU  = TrialFunction(mixed_space)
 U   = Function(mixed_space)
@@ -122,24 +118,22 @@ v, q, r = split(V)
 u, p, s = split(U)
 u0, p0, s0 = split(U0)
 
-# Boundary function
-pbar = PressureBC()
-sbar = SaturationBC()
-unbar = NormalVelocityBC()
-
 s_mid = 0.5*(s0 + s)
+
+pbar = PressureBC(degree=1)
+sbar = SaturationBC(degree=1)
 
 # Variational forms and problem
 L1 = inner(v, lmbdainv(s_mid)*Kinv*u)*dx - div(v)*p*dx + inner(v, pbar*n)*ds
 
 L2 = q*div(u)*dx
 
-# Upwind normal velocity: (dot(v, n) + |dot(v, n)|)/2.0 
+# Upwind normal velocity: (inner(v, n) + |inner(v, n)|)/2.0 
 # (using velocity from previous step on facets)
-un   = (dot(u0, n) + sqrt(dot(u0, n)*dot(u0, n)))/2.0
-un_h = (dot(u0, n) - sqrt(dot(u0, n)*dot(u0, n)))/2.0
-stabilisation = dt*inner(jump(r), un('+')*F(s_mid)('+') - un('-')*F(s_mid)('-'))*dS \
-    + dt*inner(r, un_h*sbar)*ds
+un   = (inner(u0, n) + sqrt(inner(u0, n)*inner(u0, n)))/2.0
+un_h = (inner(u0, n) - sqrt(inner(u0, n)*inner(u0, n)))/2.0
+stabilisation = dt('+')*inner(jump(r), un('+')*F(s_mid)('+') - un('-')*F(s_mid)('-'))*dS \
+    + dt*r*un_h*sbar*ds
 L3 = r*(s - s0)*dx - dt*inner(grad(r), F(s_mid)*u)*dx + dt*r*F(s_mid)*un*ds \
     + stabilisation
 
@@ -152,6 +146,8 @@ problem = VariationalProblem(a, L, nonlinear=True)
 problem.parameters["newton_solver"]["absolute_tolerance"] = 1e-12 
 problem.parameters["newton_solver"]["relative_tolerance"] = 1e-6
 problem.parameters["newton_solver"]["maximum_iterations"] = 100
+# FIXME: The following parameter doesn't work with Harish's FEniCS
+#        installation
 # problem.parameters["reset_jacobian"] = True
 
 u_file = File("velocity.pvd")
@@ -159,9 +155,9 @@ p_file = File("pressure.pvd")
 s_file = File("saturation.pvd")
 
 t = 0.0
-T = 250*dt
+T = 250*k
 while t < T:
-    t += dt
+    t += k
     U0.assign(U)
     problem.solve(U)
     u, p, s = U.split()
