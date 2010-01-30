@@ -79,26 +79,23 @@ __copyright__ = "Copyright (C) 2010 Harish Narayanan and Garth N. Wells"
 __license__   = "GNU GPL Version 3.0"
 
 from dolfin import *
+from numpy import array, sort, zeros, max, abs
+
+# This program does not run in parallel
+not_working_in_parallel("This program")
+
+# This program does not work without CGAL
+if not has_cgal():
+    print "DOLFIN must be compiled with CGAL to run this program."
+    exit(0)
 
 # Optimise compilation of forms
 parameters.optimize = True
 
-class MyNonlinearProblem(NonlinearProblem):
-    def __init__(self, a, L):
-        NonlinearProblem.__init__(self)
-        self.L = L
-        self.a = a
-        self.reset_sparsity = True
-    def F(self, b, x):
-        assemble(self.L, tensor=b)
-        print b
-    def J(self, A, x):
-        assemble(self.a, tensor=A, reset_sparsity=self.reset_sparsity)
-        self.reset_sparsity = False
-
-# Computational domain and geometry information
-mesh = UnitSquare(32, 32)
-n = FacetNormal(mesh)
+# Parameters related to the adaptivity
+TOL = 1e-15          # Desired error tolerance
+REFINE_RATIO = 0.50  # Fraction of cells to refine in each iteration
+MAX_ITER = 5         # Maximum number of iterations
 
 # Physical parameters, functional forms and boundary conditions
 # Relative viscosity of water w.r.t. crude oil
@@ -117,8 +114,9 @@ def lmbdainv(s):
 def F(s):
     return s**2/(s**2 + mu_rel*(1.0 - s)**2)
 
-# Time step
+# Time step size and number of steps
 dt = Constant(0.01)
+N = 250
 
 # Pressure boundary condition
 class PressureBC(Expression):
@@ -131,83 +129,168 @@ class SaturationBC(Expression):
         if x[0] < DOLFIN_EPS:
             values[0] =  1.0
 
-# Function spaces
-order = 1
-BDM = FunctionSpace(mesh, "Brezzi-Douglas-Marini", order)
-DG = FunctionSpace(mesh, "Discontinuous Lagrange", order - 1)
-mixed_space = MixedFunctionSpace([BDM, DG, DG])
-
-# Function spaces and functions
-V   = TestFunction(mixed_space)
-dU  = TrialFunction(mixed_space)
-U   = Function(mixed_space)
-U0  = Function(mixed_space)
-
-v, q, r = split(V)
-u, p, s = split(U)
-u0, p0, s0 = split(U0)
-
-s_mid = 0.5*(s0 + s)
-
-pbar = PressureBC(degree=1)
-sbar = SaturationBC(degree=1)
-
-# Variational forms and problem
-L1 = inner(v, lmbdainv(s_mid)*Kinv*u)*dx - div(v)*p*dx + inner(v, pbar*n)*ds
-L2 = q*div(u)*dx
-
-# Upwind normal velocity: (inner(v, n) + |inner(v, n)|)/2.0 
-# (using velocity from previous step on facets)
-un   = (inner(u0, n) + sqrt(inner(u0, n)*inner(u0, n)))/2.0
-un_h = (inner(u0, n) - sqrt(inner(u0, n)*inner(u0, n)))/2.0
-stabilisation = dt('+')*inner(jump(r), un('+')*F(s_mid)('+') - un('-')*F(s_mid)('-'))*dS \
-              + dt*r*un_h*sbar*ds
-L3 = r*(s - s0)*dx - dt*inner(grad(r), F(s_mid)*u)*dx + dt*r*F(s_mid)*un*ds \
-    + stabilisation
-
-# Total L
-L = L1 + L2 + L3
-
-# Jacobian
-a = derivative(L, U, dU)
-
-problem = MyNonlinearProblem(a, L)
-solver  = NewtonSolver()
-solver.parameters["absolute_tolerance"] = 1e-12 
-solver.parameters["relative_tolerance"] = 1e-6
-solver.parameters["maximum_iterations"] = 10
-
-#problem = VariationalProblem(a, L, nonlinear=True)
-#problem.parameters["newton_solver"]["absolute_tolerance"] = 1e-12 
-#problem.parameters["newton_solver"]["relative_tolerance"] = 1e-6
-#problem.parameters["newton_solver"]["maximum_iterations"] = 10
-#problem.parameters["reset_jacobian"] = True
+class TwoPhaseFlow(NonlinearProblem):
+    def __init__(self, a, L):
+        NonlinearProblem.__init__(self)
+        self.L = L
+        self.a = a
+        self.reset_sparsity = True
+    def F(self, b, x):
+        assemble(self.L, tensor=b)
+    def J(self, A, x):
+        assemble(self.a, tensor=A, reset_sparsity=self.reset_sparsity)
+        self.reset_sparsity = False
 
 u_file = File("velocity.pvd")
 p_file = File("pressure.pvd")
 s_file = File("saturation.pvd")
 
 t = 0.0
-T = 250*float(dt)
+T = N*float(dt)
+
 while t < T:
     t += float(dt)
-    U0.assign(U)
-    solver.solve(problem, U.vector())
-    #problem.solve(U)
-    u, p, s = U.split()
-    print U.vector().array()
-    uh = project(u)
-    sh = project(s)
+
+    print "Solving at time t = %f" % t
+
+    # Computational domain
+    mesh = UnitSquare(8, 8)
+    n = FacetNormal(mesh)
+
+    #FIXME: U0 stuff should live outside the following iteration
+
+    # Start the adaptive algorithm
+    for level in xrange(MAX_ITER):
+
+        # Function spaces
+        order = 2
+        BDM = FunctionSpace(mesh, "Brezzi-Douglas-Marini", order)
+        DG = FunctionSpace(mesh, "Discontinuous Lagrange", order - 1)
+        mixed_space = MixedFunctionSpace([BDM, DG, DG])
+
+        # Spaces to project to
+        P0s = FunctionSpace(mesh, "Discontinuous Lagrange", 0)
+        P0v = VectorFunctionSpace(mesh, "Discontinuous Lagrange", 0)
+
+        # Function spaces and functions
+        V   = TestFunction(mixed_space)
+        dU  = TrialFunction(mixed_space)
+        U   = Function(mixed_space)
+        U0  = Function(mixed_space)
+
+        v, q, r = split(V)
+        u, p, s = split(U)
+        u0, p0, s0 = split(U0)
+
+        s_mid = 0.5*(s0 + s)
+
+        pbar = PressureBC(degree=1)
+        sbar = SaturationBC(degree=1)
+
+        # Variational forms and problem
+        L1 = inner(v, lmbdainv(s_mid)*Kinv*u)*dx - div(v)*p*dx \
+            + inner(v, pbar*n)*ds
+        L2 = q*div(u)*dx
+
+        # Upwind normal velocity: (inner(v, n) + |inner(v, n)|)/2.0 
+        # (using velocity from previous step on facets)
+        un   = (inner(u0, n) + sqrt(inner(u0, n)*inner(u0, n)))/2.0
+        un_h = (inner(u0, n) - sqrt(inner(u0, n)*inner(u0, n)))/2.0
+        stabilisation = dt('+')*inner(jump(r), un('+')*F(s_mid)('+') \
+                                          - un('-')*F(s_mid)('-'))*dS \
+                                          + dt*r*un_h*sbar*ds
+        L3 = r*(s - s0)*dx - dt*inner(grad(r), F(s_mid)*u)*dx \
+            + dt*r*F(s_mid)*un*ds + stabilisation
+
+        # Total L
+        L = L1 + L2 + L3
+
+        # Jacobian
+        a = derivative(L, U, dU)
+
+        # Goal functional
+        goal = inner(grad(u), grad(u))*dx
+
+        # Dual forms
+        a_adjoint = adjoint(a)
+        L_adjoint = derivative(goal, U, V)
+
+        problem = TwoPhaseFlow(a, L)
+        solver  = NewtonSolver()
+        solver.parameters["absolute_tolerance"] = 1e-12 
+        solver.parameters["relative_tolerance"] = 1e-6
+        solver.parameters["maximum_iterations"] = 10
+
+        problem_adjoint = VariationalProblem(a_adjoint, L_adjoint)
+
+        U0.assign(U)
+        u0, p0, s0 = U0.split()
+
+        print "Solving primal problem"
+        solver.solve(problem, U.vector())
+        u, p, s = U.split()
+        print "Solving adjoint problem"
+        (z_u, z_p, z_s) = problem_adjoint.solve().split()
+
+        R1 = project(lmbdainv(s)*Kinv*u + grad(p), P0v)
+        R2 = project(div(u), P0s)
+        R3 = project((s - s0)/float(dt) + inner(u, grad(F(s))), P0s)
+
+        # Compute the derivatives of the solutions of the adjoint problem
+        Dz_u = project(div(z_u), P0s)
+        Dz_p = project(grad(z_p), P0v)
+        Dz_s = project(grad(z_s), P0v)
+
+        # Estimate the error
+        E1 = zeros(mesh.num_cells()) # From ||Dz_u|| ||h R1||
+        E2 = zeros(mesh.num_cells()) # From ||Dz_s|| ||h R2||
+        E3 = zeros(mesh.num_cells()) # From ||Dz_p|| ||h R3||
+        E = zeros(mesh.num_cells())  # Total
+    
+        # FIXME: The following can be improved by evaluation at cells,
+        # rather than points. This will be cleaned up for efficiency and
+        # pythonic style after the error estimators begin to make sense.
+
+        i = 0
+        for c in cells(mesh):
+            h = c.diameter()
+            K = c.volume()
+            x = array((c.midpoint().x(), c.midpoint().y()))
+            E1[i] = abs(Dz_u(x))*h*sqrt(R1(x)[0]**2 + R1(x)[1]**2)*sqrt(K)
+            E2[i] = sqrt(Dz_p(x)[0]**2 + Dz_p(x)[1]**2)*h*abs(R2(x))*sqrt(K)
+            E3[i] = sqrt(Dz_s(x)[0]**2 + Dz_s(x)[1]**2)*h*abs(R3(x))*sqrt(K)
+            E[i] = E1[i] + E2[i] + E3[i]
+            i = i + 1
+
+        E1_norm = sqrt(sum([e1*e1 for e1 in E1]))
+        E2_norm = sqrt(sum([e2*e2 for e2 in E2]))
+        E3_norm = sqrt(sum([e3*e3 for e3 in E3]))
+        E_norm  = sqrt(sum([e*e for e in E]))
+
+        print "Level %d: E = %g (TOL = %g)" % (level, E_norm, TOL)
+
+        # Check convergence
+        if E_norm < TOL:
+            print "Success, solution converged after %d iterations" % level
+            break
+
+        # Mark cells for refinement
+        cell_markers = MeshFunction("bool", mesh, mesh.topology().dim())
+        E_0 = sorted(E, reverse=True)[int(len(E)*REFINE_RATIO)]
+        for c in cells(mesh):
+            cell_markers[c] = E[c.index()] > E_0
+
+        # Refine mesh
+        mesh.refine(cell_markers)
+
+        # Plot mesh
+        plot(mesh)
+#        interactive()
+
+#    u_proj = project(u)
     # plot(uh, title="Velocity")
     # plot(p, title="Pressure")
     # plot(s, title="Saturation")
-    u_file << uh
-    p_file << p
-    s_file << s
-
-    # Code which can eventually help to reset S between 0, 1
-    #x = U0.vector().array()
-    #print x
-    #print x[32]
-    #print where(x > 0.2)
-
+#    u_file << u_proj
+#    p_file << p
+#    s_file << s
