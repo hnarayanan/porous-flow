@@ -84,6 +84,11 @@ from numpy import array, sort, zeros, max, abs
 # This program does not run in parallel
 not_working_in_parallel("This program")
 
+# This program does not work without CGAL
+if not has_cgal():
+    print "DOLFIN must be compiled with CGAL to run this program."
+    exit(0)
+
 # Optimise compilation of forms
 parameters.optimize = True
 
@@ -91,18 +96,6 @@ parameters.optimize = True
 TOL = 1e-15          # Desired error tolerance
 REFINE_RATIO = 0.50  # Fraction of cells to refine in each iteration
 MAX_ITER = 5         # Maximum number of iterations
-
-class TwoPhaseFlow(NonlinearProblem):
-    def __init__(self, a, L):
-        NonlinearProblem.__init__(self)
-        self.L = L
-        self.a = a
-        self.reset_sparsity = True
-    def F(self, b, x):
-        assemble(self.L, tensor=b)
-    def J(self, A, x):
-        assemble(self.a, tensor=A, reset_sparsity=self.reset_sparsity)
-        self.reset_sparsity = False
 
 # Physical parameters, functional forms and boundary conditions
 # Relative viscosity of water w.r.t. crude oil
@@ -136,6 +129,18 @@ class SaturationBC(Expression):
         if x[0] < DOLFIN_EPS:
             values[0] =  1.0
 
+class TwoPhaseFlow(NonlinearProblem):
+    def __init__(self, a, L):
+        NonlinearProblem.__init__(self)
+        self.L = L
+        self.a = a
+        self.reset_sparsity = True
+    def F(self, b, x):
+        assemble(self.L, tensor=b)
+    def J(self, A, x):
+        assemble(self.a, tensor=A, reset_sparsity=self.reset_sparsity)
+        self.reset_sparsity = False
+
 u_file = File("velocity.pvd")
 p_file = File("pressure.pvd")
 s_file = File("saturation.pvd")
@@ -151,6 +156,8 @@ while t < T:
     # Computational domain
     mesh = UnitSquare(8, 8)
     n = FacetNormal(mesh)
+
+    #FIXME: U0 stuff should live outside the following iteration
 
     # Start the adaptive algorithm
     for level in xrange(MAX_ITER):
@@ -218,16 +225,17 @@ while t < T:
 
         U0.assign(U)
         u0, p0, s0 = U0.split()
+
         print "Solving primal problem"
         solver.solve(problem, U.vector())
         u, p, s = U.split()
         print "Solving adjoint problem"
         (z_u, z_p, z_s) = problem_adjoint.solve().split()
-        
+
         R1 = project(lmbdainv(s)*Kinv*u + grad(p), P0v)
         R2 = project(div(u), P0s)
         R3 = project((s - s0)/float(dt) + inner(u, grad(F(s))), P0s)
-        
+
         # Compute the derivatives of the solutions of the adjoint problem
         Dz_u = project(div(z_u), P0s)
         Dz_p = project(grad(z_p), P0v)
@@ -258,7 +266,7 @@ while t < T:
         E2_norm = sqrt(sum([e2*e2 for e2 in E2]))
         E3_norm = sqrt(sum([e3*e3 for e3 in E3]))
         E_norm  = sqrt(sum([e*e for e in E]))
-    
+
         print "Level %d: E = %g (TOL = %g)" % (level, E_norm, TOL)
 
         # Check convergence
@@ -277,12 +285,12 @@ while t < T:
 
         # Plot mesh
         plot(mesh)
-        interactive()
+#        interactive()
 
-    u_proj = project(u)
+#    u_proj = project(u)
     # plot(uh, title="Velocity")
     # plot(p, title="Pressure")
     # plot(s, title="Saturation")
-    u_file << u_proj
-    p_file << p
-    s_file << s
+#    u_file << u_proj
+#    p_file << p
+#    s_file << s
