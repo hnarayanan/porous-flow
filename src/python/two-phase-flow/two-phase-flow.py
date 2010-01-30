@@ -62,7 +62,7 @@ from dolfin import *
 parameters.optimize=True
 
 # Computational domain and geometry information
-mesh = UnitSquare(64, 64)
+mesh = UnitSquare(8, 8)
 n = FacetNormal(mesh)
 boundary = MeshFunction("uint", mesh, mesh.topology().dim() - 1)
 boundary.set_all(5)
@@ -100,7 +100,8 @@ class PressureBC(Expression):
 # Saturation boundary condition
 class SaturationBC(Expression):
     def eval(self, values, x):
-        values[0] = 1.0 - x[0]
+        if x[0] < DOLFIN_EPS:
+            values[0] =  1.0
 
 # Normal velocity boundary condition
 class NormalVelocityBC(Expression):
@@ -128,6 +129,7 @@ v, q, r = split(V)
 u, p, s = split(U)
 u0, p0, s0 = split(U0)
 
+# Boundary function
 pbar = PressureBC()
 sbar = SaturationBC()
 unbar = NormalVelocityBC()
@@ -145,9 +147,10 @@ L2 = q*div(u)*dx
 un   = (dot(u0, n) + sqrt(dot(u0, n)*dot(u0, n)))/2.0
 un_h = (dot(u0, n) - sqrt(dot(u0, n)*dot(u0, n)))/2.0
 stabilisation = dt*inner(jump(r), un('+')*F(s_mid)('+') - un('-')*F(s_mid)('-'))*dS \
-    + dt*inner(r, un_h*sbar)*ds
+    + dt*inner(r, un_h*sbar)*ds(1)
 
-L3 = r*(s - s0)*dx - dt*inner(grad(r), F(s_mid)*u)*dx + dt*r*inner(F(sbar)*u, n)*ds(1) \
+L3 = r*(s - s0)*dx - dt*inner(grad(r), F(s_mid)*u)*dx + dt*r*F(s_mid)*un*ds(1) \
+    + dt*r*F(s_mid)*un*ds(2) \
     + stabilisation
 
 L = L1 + L2 + L3
@@ -159,14 +162,14 @@ problem = VariationalProblem(a, L, exterior_facet_domains=boundary, nonlinear=Tr
 problem.parameters["newton_solver"]["absolute_tolerance"] = 1e-12 
 problem.parameters["newton_solver"]["relative_tolerance"] = 1e-6
 problem.parameters["newton_solver"]["maximum_iterations"] = 100
-problem.parameters["reset_jacobian"] = True
+# problem.parameters["reset_jacobian"] = True
 
 u_file = File("velocity.pvd")
 p_file = File("pressure.pvd")
 s_file = File("saturation.pvd")
 
 t = 0.0
-T = 50*dt
+T = 250*dt
 while t < T:
     t += dt
     U0.assign(U)
@@ -174,9 +177,9 @@ while t < T:
     u, p, s = U.split()
     uh = project(u, P1v)
     sh = project(s, P1s)
-    plot(uh, title="Velocity")
-    plot(p, title="Pressure")
-    plot(s, title="Saturation")
+    # plot(uh, title="Velocity")
+    # plot(p, title="Pressure")
+    # plot(s, title="Saturation")
     u_file << uh
     p_file << p
     s_file << s
