@@ -83,6 +83,19 @@ from dolfin import *
 # Optimise compilation of forms
 parameters.optimize = True
 
+class MyNonlinearProblem(NonlinearProblem):
+    def __init__(self, a, L):
+        NonlinearProblem.__init__(self)
+        self.L = L
+        self.a = a
+        self.reset_sparsity = True
+    def F(self, b, x):
+        assemble(self.L, tensor=b)
+        print b
+    def J(self, A, x):
+        assemble(self.a, tensor=A, reset_sparsity=self.reset_sparsity)
+        self.reset_sparsity = False
+
 # Computational domain and geometry information
 mesh = UnitSquare(32, 32)
 n = FacetNormal(mesh)
@@ -98,11 +111,11 @@ Kinv = as_matrix(((kinv, zero), (zero, kinv)))
 
 # Total mobility
 def lmbdainv(s):
-    return 1.0/((1.0/mu_rel)*s**2 + (1 - s)**2)
+    return 1.0/((1.0/mu_rel)*s**2 + (1.0 - s)**2)
 
 # Fractional flow function
 def F(s):
-    return s**2/(s**2 + mu_rel*(1 - s)**2)
+    return s**2/(s**2 + mu_rel*(1.0 - s)**2)
 
 # Time step
 dt = Constant(0.01)
@@ -123,10 +136,6 @@ order = 1
 BDM = FunctionSpace(mesh, "Brezzi-Douglas-Marini", order)
 DG = FunctionSpace(mesh, "Discontinuous Lagrange", order - 1)
 mixed_space = MixedFunctionSpace([BDM, DG, DG])
-
-# For projecting fields
-P1s = FunctionSpace(mesh, "Lagrange",  1)
-P1v = VectorFunctionSpace(mesh, "Lagrange",  1)
 
 # Function spaces and functions
 V   = TestFunction(mixed_space)
@@ -162,15 +171,17 @@ L = L1 + L2 + L3
 # Jacobian
 a = derivative(L, U, dU)
 
-# FIXME: This is an expensive approach for repeated solve.
-#        See approach used for Cahn-Hilliard demo.
-problem = VariationalProblem(a, L, nonlinear=True)
-problem.parameters["newton_solver"]["absolute_tolerance"] = 1e-12 
-problem.parameters["newton_solver"]["relative_tolerance"] = 1e-6
-problem.parameters["newton_solver"]["maximum_iterations"] = 10
-# FIXME: The following parameter doesn't work with Harish's FEniCS
-#        installation
-# problem.parameters["reset_jacobian"] = True
+problem = MyNonlinearProblem(a, L)
+solver  = NewtonSolver()
+solver.parameters["absolute_tolerance"] = 1e-12 
+solver.parameters["relative_tolerance"] = 1e-6
+solver.parameters["maximum_iterations"] = 10
+
+#problem = VariationalProblem(a, L, nonlinear=True)
+#problem.parameters["newton_solver"]["absolute_tolerance"] = 1e-12 
+#problem.parameters["newton_solver"]["relative_tolerance"] = 1e-6
+#problem.parameters["newton_solver"]["maximum_iterations"] = 10
+#problem.parameters["reset_jacobian"] = True
 
 u_file = File("velocity.pvd")
 p_file = File("pressure.pvd")
@@ -181,10 +192,12 @@ T = 250*float(dt)
 while t < T:
     t += float(dt)
     U0.assign(U)
-    problem.solve(U)
+    solver.solve(problem, U.vector())
+    #problem.solve(U)
     u, p, s = U.split()
-    uh = project(u, P1v)
-    sh = project(s, P1s)
+    print U.vector().array()
+    uh = project(u)
+    sh = project(s)
     # plot(uh, title="Velocity")
     # plot(p, title="Pressure")
     # plot(s, title="Saturation")
