@@ -70,7 +70,6 @@ class MyNonlinearProblem(NonlinearProblem):
         self.reset_sparsity = True
     def F(self, b, x):
         assemble(self.L, tensor=b)
-        print b
     def J(self, A, x):
         assemble(self.a, tensor=A, reset_sparsity=self.reset_sparsity)
         self.reset_sparsity = False
@@ -174,7 +173,6 @@ while t < T:
     solver.solve(problem, U.vector())
     #problem.solve(U)
     u, p, s = U.split()
-    print U.vector().array()
     uh = project(u)
     sh = project(s)
     # plot(uh, title="Velocity")
