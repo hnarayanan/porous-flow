@@ -116,13 +116,13 @@ DG = FunctionSpace(mesh, "Discontinuous Lagrange", order - 1)
 mixed_space = MixedFunctionSpace([BDM, DG, DG])
 
 # Function spaces and functions
-V   = TestFunction(mixed_space)
-dU  = TrialFunction(mixed_space)
-U   = Function(mixed_space)
-U0  = Function(mixed_space)
+V  = TestFunction(mixed_space)
+dU = TrialFunction(mixed_space)
+U  = Function(mixed_space)
+U0 = Function(mixed_space)
 
-v, q, r = split(V)
-u, p, s = split(U)
+v,  q,  r  = split(V)
+u,  p,  s  = split(U)
 u0, p0, s0 = split(U0)
 
 s_mid = 0.5*(s0 + s)
