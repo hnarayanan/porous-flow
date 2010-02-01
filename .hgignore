@@ -10,6 +10,7 @@ syntax: glob
 *.nb
 src/cpp/demo
 .DS_Store
+*.avi
 
 syntax: regexp
 .*\#.*\#$
