@@ -60,18 +60,23 @@ __license__   = "GNU GPL Version 3.0"
 from dolfin import *
 
 # Optimise compilation of forms
-parameters.optimize = True
+#parameters.optimize = True
+#parameters["form_compiler"]["log_level"] = INFO
+#parameters["form_compiler"]["cpp_optimize"] = True
+#parameters["form_compiler"]["optimize"] = True
 
 class MyNonlinearProblem(NonlinearProblem):
-    def __init__(self, a, L):
+    def __init__(self, a, L, ffc_parameters):
         NonlinearProblem.__init__(self)
         self.L = L
         self.a = a
         self.reset_sparsity = True
+        self.ffc_parameters = ffc_parameters
     def F(self, b, x):
-        assemble(self.L, tensor=b)
+        assemble(self.L, tensor=b, form_compiler_parameters=self.ffc_parameters)
     def J(self, A, x):
-        assemble(self.a, tensor=A, reset_sparsity=self.reset_sparsity)
+        assemble(self.a, tensor=A, reset_sparsity=self.reset_sparsity,
+                 form_compiler_parameters=self.ffc_parameters)
         self.reset_sparsity = False
 
 # Computational domain and geometry information
@@ -115,6 +120,10 @@ BDM = FunctionSpace(mesh, "Brezzi-Douglas-Marini", order)
 DG = FunctionSpace(mesh, "Discontinuous Lagrange", order - 1)
 mixed_space = MixedFunctionSpace([BDM, DG, DG])
 
+# FIXME: Select a 'good' quadrature degree
+#ffc_parameters = {"quadrature_degree": order + 1, "representation": "quadrature"}
+ffc_parameters = {"representation": "quadrature"}
+
 # Function spaces and functions
 V  = TestFunction(mixed_space)
 dU = TrialFunction(mixed_space)
@@ -149,7 +158,7 @@ L = L1 + L2 + L3
 # Jacobian
 a = derivative(L, U, dU)
 
-problem = MyNonlinearProblem(a, L)
+problem = MyNonlinearProblem(a, L, ffc_parameters)
 solver  = NewtonSolver()
 solver.parameters["absolute_tolerance"] = 1e-12 
 solver.parameters["relative_tolerance"] = 1e-6
