@@ -60,10 +60,9 @@ __license__   = "GNU GPL Version 3.0"
 from dolfin import *
 
 # Optimise compilation of forms
-#parameters.optimize = True
 #parameters["form_compiler"]["log_level"] = INFO
-#parameters["form_compiler"]["cpp_optimize"] = True
-#parameters["form_compiler"]["optimize"] = True
+parameters["form_compiler"]["cpp_optimize"] = True
+parameters["form_compiler"]["optimize"] = True
 
 class MyNonlinearProblem(NonlinearProblem):
     def __init__(self, a, L, ffc_parameters):
@@ -121,8 +120,8 @@ DG = FunctionSpace(mesh, "Discontinuous Lagrange", order - 1)
 mixed_space = MixedFunctionSpace([BDM, DG, DG])
 
 # FIXME: Select a 'good' quadrature degree
-#ffc_parameters = {"quadrature_degree": order + 1, "representation": "quadrature"}
-ffc_parameters = {"representation": "quadrature"}
+ffc_parameters = {"quadrature_degree": order + 1, "representation": "quadrature"}
+#ffc_parameters = {"representation": "quadrature"}
 
 # Function spaces and functions
 V  = TestFunction(mixed_space)
@@ -145,8 +144,9 @@ L2 = q*div(u)*dx
 
 # Upwind normal velocity: (inner(v, n) + |inner(v, n)|)/2.0 
 # (using velocity from previous step on facets)
-un   = (inner(u0, n) + sqrt(inner(u0, n)*inner(u0, n)))/2.0
-un_h = (inner(u0, n) - sqrt(inner(u0, n)*inner(u0, n)))/2.0
+# *** Use 0.5*u instead of u/2 to get around FFC bug when optimisations is on
+un   = 0.5*(inner(u0, n) + sqrt(inner(u0, n)*inner(u0, n)))
+un_h = 0.5*(inner(u0, n) - sqrt(inner(u0, n)*inner(u0, n)))
 stabilisation = dt('+')*inner(jump(r), un('+')*F(s_mid)('+') - un('-')*F(s_mid)('-'))*dS \
               + dt*r*un_h*sbar*ds
 L3 = r*(s - s0)*dx - dt*inner(grad(r), F(s_mid)*u)*dx + dt*r*F(s_mid)*un*ds \
@@ -164,12 +164,6 @@ solver.parameters["absolute_tolerance"] = 1e-12
 solver.parameters["relative_tolerance"] = 1e-6
 solver.parameters["maximum_iterations"] = 10
 
-#problem = VariationalProblem(a, L, nonlinear=True)
-#problem.parameters["newton_solver"]["absolute_tolerance"] = 1e-12 
-#problem.parameters["newton_solver"]["relative_tolerance"] = 1e-6
-#problem.parameters["newton_solver"]["maximum_iterations"] = 10
-#problem.parameters["reset_jacobian"] = True
-
 u_file = File("velocity.pvd")
 p_file = File("pressure.pvd")
 s_file = File("saturation.pvd")
@@ -180,7 +174,6 @@ while t < T:
     t += float(dt)
     U0.assign(U)
     solver.solve(problem, U.vector())
-    #problem.solve(U)
     u, p, s = U.split()
     uh = project(u)
     sh = project(s)
