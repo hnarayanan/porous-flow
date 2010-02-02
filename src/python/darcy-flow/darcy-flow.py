@@ -40,7 +40,7 @@ def a(v, q, u, p):
     return dot(Kinv*v, u)*dx - div(v)*p*dx + q*div(u)*dx
 
 # Create mesh and define function spaces
-mesh = UnitSquare(64, 64)
+mesh = Mesh("../../../data/grad-kinv-mesh.xml.gz")
 n = FacetNormal(mesh)
 BDM = FunctionSpace(mesh, "BDM", 3)
 DG = FunctionSpace(mesh, "DG", 2)
