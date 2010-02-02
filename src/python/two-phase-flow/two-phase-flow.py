@@ -79,7 +79,7 @@ class MyNonlinearProblem(NonlinearProblem):
         self.reset_sparsity = False
 
 # Computational domain and geometry information
-mesh = UnitSquare(32, 32)
+mesh = UnitSquare(64, 64)
 n = FacetNormal(mesh)
 
 # Physical parameters, functional forms and boundary conditions
