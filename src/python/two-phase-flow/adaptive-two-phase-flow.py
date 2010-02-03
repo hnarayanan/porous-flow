@@ -97,6 +97,12 @@ TOL = 1e-15          # Desired error tolerance
 REFINE_RATIO = 0.50  # Fraction of cells to refine in each iteration
 MAX_ITER = 5         # Maximum number of iterations
 
+# Order of elements
+order = 2
+
+# Parameters to the form compiler
+ffc_parameters = {"quadrature_degree": order + 1, "representation": "quadrature"}
+
 # Physical parameters, functional forms and boundary conditions
 # Relative viscosity of water w.r.t. crude oil
 mu_rel = 0.2
@@ -130,20 +136,27 @@ class SaturationBC(Expression):
             values[0] =  1.0
 
 class TwoPhaseFlow(NonlinearProblem):
-    def __init__(self, a, L):
+    def __init__(self, a, L, ffc_parameters):
         NonlinearProblem.__init__(self)
         self.L = L
         self.a = a
         self.reset_sparsity = True
+        self.ffc_parameters = ffc_parameters
     def F(self, b, x):
-        assemble(self.L, tensor=b)
+        assemble(self.L, tensor=b, form_compiler_parameters=self.ffc_parameters)
     def J(self, A, x):
-        assemble(self.a, tensor=A, reset_sparsity=self.reset_sparsity)
+        assemble(self.a, tensor=A, reset_sparsity=self.reset_sparsity, form_compiler_parameters=self.ffc_parameters)
         self.reset_sparsity = False
 
 u_file = File("velocity.pvd")
 p_file = File("pressure.pvd")
 s_file = File("saturation.pvd")
+
+mesh0 = UnitSquare(8, 8, "crossed")
+BDM0 = FunctionSpace(mesh0, "Brezzi-Douglas-Marini", order)
+DG0 = FunctionSpace(mesh0, "Discontinuous Lagrange", order - 1)
+mixed_space0 = MixedFunctionSpace([BDM0, DG0, DG0])
+U0 = Function(mixed_space0)
 
 t = 0.0
 T = N*float(dt)
@@ -154,16 +167,13 @@ while t < T:
     print "Solving at time t = %f" % t
 
     # Computational domain
-    mesh = UnitSquare(8, 8)
+    mesh = Mesh(mesh0)
     n = FacetNormal(mesh)
-
-    #FIXME: U0 stuff should live outside the following iteration
 
     # Start the adaptive algorithm
     for level in xrange(MAX_ITER):
 
         # Function spaces
-        order = 2
         BDM = FunctionSpace(mesh, "Brezzi-Douglas-Marini", order)
         DG = FunctionSpace(mesh, "Discontinuous Lagrange", order - 1)
         mixed_space = MixedFunctionSpace([BDM, DG, DG])
@@ -176,7 +186,7 @@ while t < T:
         V   = TestFunction(mixed_space)
         dU  = TrialFunction(mixed_space)
         U   = Function(mixed_space)
-        U0  = Function(mixed_space)
+        U0  = interpolate(U0, mixed_space)
 
         v, q, r = split(V)
         u, p, s = split(U)
@@ -215,16 +225,13 @@ while t < T:
         a_adjoint = adjoint(a)
         L_adjoint = derivative(goal, U, V)
 
-        problem = TwoPhaseFlow(a, L)
+        problem = TwoPhaseFlow(a, L, ffc_parameters)
         solver  = NewtonSolver()
-        solver.parameters["absolute_tolerance"] = 1e-12 
-        solver.parameters["relative_tolerance"] = 1e-6
+        solver.parameters["absolute_tolerance"] = 1e-14 
+        solver.parameters["relative_tolerance"] = 1e-9
         solver.parameters["maximum_iterations"] = 10
 
         problem_adjoint = VariationalProblem(a_adjoint, L_adjoint)
-
-        U0.assign(U)
-        u0, p0, s0 = U0.split()
 
         print "Solving primal problem"
         solver.solve(problem, U.vector())
@@ -283,14 +290,8 @@ while t < T:
         # Refine mesh
         mesh.refine(cell_markers)
 
-        # Plot mesh
-        plot(mesh)
-#        interactive()
-
-#    u_proj = project(u)
-    # plot(uh, title="Velocity")
-    # plot(p, title="Pressure")
-    # plot(s, title="Saturation")
-#    u_file << u_proj
-#    p_file << p
-#    s_file << s
+    # Update solution and plot relevant quantities before moving to
+    # the next time step
+    plot(s, title="%f" % t)
+    U0 = U
+    plot(mesh)
