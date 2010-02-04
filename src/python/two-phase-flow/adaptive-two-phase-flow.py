@@ -90,18 +90,17 @@ if not has_cgal():
     exit(0)
 
 # Optimise compilation of forms
-parameters.optimize = True
+#parameters["form_compiler"]["log_level"] = INFO
+parameters["form_compiler"]["cpp_optimize"] = True
+parameters["form_compiler"]["optimize"] = True
 
 # Parameters related to the adaptivity
-TOL = 1e-15          # Desired error tolerance
-REFINE_RATIO = 0.50  # Fraction of cells to refine in each iteration
-MAX_ITER = 5         # Maximum number of iterations
+TOL = 0.01           # Desired error tolerance
+REFINE_RATIO = 0.10  # Fraction of cells to refine in each iteration
+MAX_ITER = 3         # Maximum number of iterations
 
-# Order of elements
-order = 2
-
-# Parameters to the form compiler
-ffc_parameters = {"quadrature_degree": order + 1, "representation": "quadrature"}
+# Computational domain and geometry information
+mesh0 = UnitSquare(8, 8, "crossed")
 
 # Physical parameters, functional forms and boundary conditions
 # Relative viscosity of water w.r.t. crude oil
@@ -145,14 +144,20 @@ class TwoPhaseFlow(NonlinearProblem):
     def F(self, b, x):
         assemble(self.L, tensor=b, form_compiler_parameters=self.ffc_parameters)
     def J(self, A, x):
-        assemble(self.a, tensor=A, reset_sparsity=self.reset_sparsity, form_compiler_parameters=self.ffc_parameters)
+        assemble(self.a, tensor=A, reset_sparsity=self.reset_sparsity,
+                 form_compiler_parameters=self.ffc_parameters)
         self.reset_sparsity = False
+
+# Order of the elements
+order = 1
+
+# Parameters to the form compiler
+ffc_parameters = {"quadrature_degree": order + 1, "representation": "quadrature"}
 
 u_file = File("velocity.pvd")
 p_file = File("pressure.pvd")
 s_file = File("saturation.pvd")
 
-mesh0 = UnitSquare(8, 8, "crossed")
 BDM0 = FunctionSpace(mesh0, "Brezzi-Douglas-Marini", order)
 DG0 = FunctionSpace(mesh0, "Discontinuous Lagrange", order - 1)
 mixed_space0 = MixedFunctionSpace([BDM0, DG0, DG0])
@@ -162,8 +167,8 @@ t = 0.0
 T = N*float(dt)
 
 while t < T:
-    t += float(dt)
 
+    t += float(dt)
     print "Solving at time t = %f" % t
 
     # Computational domain
@@ -181,8 +186,9 @@ while t < T:
         # Spaces to project to
         P0s = FunctionSpace(mesh, "Discontinuous Lagrange", 0)
         P0v = VectorFunctionSpace(mesh, "Discontinuous Lagrange", 0)
+        P1v = VectorFunctionSpace(mesh, "Lagrange", 1)
 
-        # Function spaces and functions
+        # Functions
         V   = TestFunction(mixed_space)
         dU  = TrialFunction(mixed_space)
         U   = Function(mixed_space)
@@ -197,15 +203,15 @@ while t < T:
         pbar = PressureBC(degree=1)
         sbar = SaturationBC(degree=1)
 
-        # Variational forms and problem
+        # Variational forms for the primal problem
         L1 = inner(v, lmbdainv(s_mid)*Kinv*u)*dx - div(v)*p*dx \
             + inner(v, pbar*n)*ds
         L2 = q*div(u)*dx
 
         # Upwind normal velocity: (inner(v, n) + |inner(v, n)|)/2.0 
         # (using velocity from previous step on facets)
-        un   = (inner(u0, n) + sqrt(inner(u0, n)*inner(u0, n)))/2.0
-        un_h = (inner(u0, n) - sqrt(inner(u0, n)*inner(u0, n)))/2.0
+        un   = 0.5*(inner(u0, n) + sqrt(inner(u0, n)*inner(u0, n)))
+        un_h = 0.5*(inner(u0, n) - sqrt(inner(u0, n)*inner(u0, n)))
         stabilisation = dt('+')*inner(jump(r), un('+')*F(s_mid)('+') \
                                           - un('-')*F(s_mid)('-'))*dS \
                                           + dt*r*un_h*sbar*ds
@@ -218,24 +224,24 @@ while t < T:
         # Jacobian
         a = derivative(L, U, dU)
 
-        # Goal functional
-        goal = inner(grad(u), grad(u))*dx
-
-        # Dual forms
-        a_adjoint = adjoint(a)
-        L_adjoint = derivative(goal, U, V)
-
+        # Setup and solve the primal problem
         problem = TwoPhaseFlow(a, L, ffc_parameters)
         solver  = NewtonSolver()
         solver.parameters["absolute_tolerance"] = 1e-14 
         solver.parameters["relative_tolerance"] = 1e-9
         solver.parameters["maximum_iterations"] = 10
 
-        problem_adjoint = VariationalProblem(a_adjoint, L_adjoint)
-
         print "Solving primal problem"
         solver.solve(problem, U.vector())
         u, p, s = U.split()
+
+        # Variational forms for the adjoint problem
+        a_adjoint = adjoint(a)
+        L_adjoint = inner(grad(u), grad(v))*dx
+        # L_adjoint = derivative(goal, U, V)
+
+        problem_adjoint = VariationalProblem(a_adjoint, L_adjoint)
+
         print "Solving adjoint problem"
         (z_u, z_p, z_s) = problem_adjoint.solve().split()
 
@@ -245,8 +251,12 @@ while t < T:
 
         # Compute the derivatives of the solutions of the adjoint problem
         Dz_u = project(div(z_u), P0s)
-        Dz_p = project(grad(z_p), P0v)
-        Dz_s = project(grad(z_s), P0v)
+        # Dz_p = project(grad(z_p), P0v)
+        # Dz_s = project(grad(z_s), P0v)
+
+        # FIXME: These are fake derivatives
+        Dz_p = project(as_vector([Constant(1.0), Constant(1.0)]), P0v)
+        Dz_s = project(as_vector([Constant(1.0), Constant(1.0)]), P0v)
 
         # Estimate the error
         E1 = zeros(mesh.num_cells()) # From ||Dz_u|| ||h R1||
@@ -289,9 +299,16 @@ while t < T:
 
         # Refine mesh
         mesh.refine(cell_markers)
+        plot(mesh)
 
-    # Update solution and plot relevant quantities before moving to
-    # the next time step
-    plot(s, title="%f" % t)
-    U0 = U
-    plot(mesh)
+    # Plot and store interesting solutions
+    uh = project(u, P1v)
+    # plot(uh, title="Velocity")
+    # plot(p, title="Pressure")
+    # plot(s, title="Saturation at time t = %f" % t)
+    u_file << uh
+    p_file << p
+    s_file << s
+
+    # Update to next time step
+    U0 = project(U, mixed_space0)
