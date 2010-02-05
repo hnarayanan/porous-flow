@@ -80,6 +80,7 @@ __license__   = "GNU GPL Version 3.0"
 
 from dolfin import *
 from numpy import array, sort, zeros, max, abs
+import sys
 
 # This program does not run in parallel
 not_working_in_parallel("This program")
@@ -95,8 +96,8 @@ parameters["form_compiler"]["cpp_optimize"] = True
 parameters["form_compiler"]["optimize"] = True
 
 # Parameters related to the adaptivity
-TOL = 0.05           # Desired error tolerance
-REFINE_RATIO = 0.05  # Fraction of cells to refine in each iteration
+TOL = 0.02           # Desired error tolerance
+REFINE_RATIO = 0.01  # Fraction of cells to refine in each iteration
 MAX_ITER = 5         # Maximum number of iterations
 
 # Computational domain and geometry information
@@ -159,7 +160,8 @@ def print_better(output):
 order = 1
 
 # Parameters to the form compiler
-ffc_parameters = {"quadrature_degree": order + 1, "representation": "quadrature"}
+#ffc_parameters = {"quadrature_degree": order + 1, "representation": "quadrature"}
+ffc_parameters = {"representation": "quadrature"}
 
 u_file = File("velocity.pvd")
 p_file = File("pressure.pvd")
@@ -173,14 +175,17 @@ U0 = Function(mixed_space0)
 t = 0.0
 T = N*float(dt)
 
+mesh = Mesh(mesh0)
+mesh1 = Mesh(mesh0)
+
 while t < T:
 
     t += float(dt)
     print_good("Solving at time t = %f" % t)
 
     # Computational domain
-    mesh = Mesh(mesh0)
-    mesh1 = Mesh(mesh0)
+#    mesh = Mesh(mesh0)
+#    mesh1 = Mesh(mesh0)
 
     # Start the adaptive algorithm
     for level in xrange(MAX_ITER):
@@ -201,7 +206,7 @@ while t < T:
         V   = TestFunction(mixed_space)
         dU  = TrialFunction(mixed_space)
         U   = Function(mixed_space)
-        U0  = interpolate(U0, mixed_space)
+#        U0  = interpolate(U0, mixed_space)
 
         v, q, r = split(V)
         u, p, s = split(U)
@@ -242,12 +247,17 @@ while t < T:
 
         print "Solving primal problem"
         solver.solve(problem, U.vector())
-        u, p, s = U.split()
+        u, p, s = U.split(True)
+        
+        if min(s.vector().array()) < 0.0 - DOLFIN_EPS or max(s.vector().array()) > 1.0 + DOLFIN_EPS:
+            print min(s.vector().array()), max(s.vector().array())
+            print "Danger, Will Robinson!"
+            sys.exit(0)
+
 
         # Variational forms for the adjoint problem
         a_adjoint = adjoint(a)
         L_adjoint = inner(grad(u), grad(v))*dx
-        # L_adjoint = derivative(goal, U, V)
 
         problem_adjoint = VariationalProblem(a_adjoint, L_adjoint)
 
@@ -310,9 +320,9 @@ while t < T:
 
         # Refine mesh
         mesh1.refine(cell_markers)
-    plot(mesh1, title="Mesh at time t = %f" % t)
 
-    # Plot and store interesting solutions
+    # Plot and store interesting quantities
+    # plot(mesh1, title="Mesh at time t = %f" % t)
     # plot(u, title="Velocity")
     # plot(p, title="Pressure")
     # plot(s, title="Saturation at time t = %f" % t)
@@ -321,4 +331,4 @@ while t < T:
     s_file << s
 
     # Update to next time step
-    U0 = interpolate(U, mixed_space0)
+    U0 = U
