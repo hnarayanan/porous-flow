@@ -95,9 +95,9 @@ parameters["form_compiler"]["cpp_optimize"] = True
 parameters["form_compiler"]["optimize"] = True
 
 # Parameters related to the adaptivity
-TOL = 0.01           # Desired error tolerance
+TOL = 0.05           # Desired error tolerance
 REFINE_RATIO = 0.05  # Fraction of cells to refine in each iteration
-MAX_ITER = 3         # Maximum number of iterations
+MAX_ITER = 5         # Maximum number of iterations
 
 # Computational domain and geometry information
 mesh0 = UnitSquare(8, 8, "crossed")
@@ -180,10 +180,12 @@ while t < T:
 
     # Computational domain
     mesh = Mesh(mesh0)
+    mesh1 = Mesh(mesh0)
 
     # Start the adaptive algorithm
     for level in xrange(MAX_ITER):
 
+        mesh = Mesh(mesh1)
         n = FacetNormal(mesh)
 
         # Function spaces
@@ -194,7 +196,6 @@ while t < T:
         # Spaces to project to
         P0s = FunctionSpace(mesh, "Discontinuous Lagrange", 0)
         P0v = VectorFunctionSpace(mesh, "Discontinuous Lagrange", 0)
-        P1v = VectorFunctionSpace(mesh, "Lagrange", 1)
 
         # Functions
         V   = TestFunction(mixed_space)
@@ -305,16 +306,17 @@ while t < T:
         for c in cells(mesh):
             cell_markers[c] = E[c.index()] > E_0
 
+        mesh1 = Mesh(mesh)
+
         # Refine mesh
-        mesh.refine(cell_markers)
-        plot(mesh)
+        mesh1.refine(cell_markers)
+    plot(mesh1, title="Mesh at time t = %f" % t)
 
     # Plot and store interesting solutions
-    uh = project(u, P1v)
-    # plot(uh, title="Velocity")
+    # plot(u, title="Velocity")
     # plot(p, title="Pressure")
     # plot(s, title="Saturation at time t = %f" % t)
-    u_file << uh
+    u_file << u
     p_file << p
     s_file << s
 
