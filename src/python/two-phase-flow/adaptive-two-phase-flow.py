@@ -268,8 +268,8 @@ while t < T:
         # Dz_s = project(grad(z_s), P0v)
 
         # FIXME: These are fake derivatives
-        Dz_p = project(as_vector([Constant(1.0), Constant(1.0)]), P0v)
-        Dz_s = project(as_vector([Constant(1.0), Constant(1.0)]), P0v)
+        Dz_p = project(Constant((1.0, 1.0)), P0v)
+        Dz_s = project(Constant((1.0, 1.0)), P0v)
 
         # Estimate the error
         E1 = zeros(mesh.num_cells()) # From ||Dz_u|| ||h R1||
