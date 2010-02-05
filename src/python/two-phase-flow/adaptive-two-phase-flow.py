@@ -96,7 +96,7 @@ parameters["form_compiler"]["optimize"] = True
 
 # Parameters related to the adaptivity
 TOL = 0.01           # Desired error tolerance
-REFINE_RATIO = 0.10  # Fraction of cells to refine in each iteration
+REFINE_RATIO = 0.05  # Fraction of cells to refine in each iteration
 MAX_ITER = 3         # Maximum number of iterations
 
 # Computational domain and geometry information
@@ -148,6 +148,13 @@ class TwoPhaseFlow(NonlinearProblem):
                  form_compiler_parameters=self.ffc_parameters)
         self.reset_sparsity = False
 
+# Print in colour
+def print_good(output):
+    print '\033[1;32m%s\033[1;m' % output
+
+def print_better(output):
+    print '\033[1;42m%s\033[1;m' % output
+
 # Order of the elements
 order = 1
 
@@ -169,14 +176,15 @@ T = N*float(dt)
 while t < T:
 
     t += float(dt)
-    print "Solving at time t = %f" % t
+    print_good("Solving at time t = %f" % t)
 
     # Computational domain
     mesh = Mesh(mesh0)
-    n = FacetNormal(mesh)
 
     # Start the adaptive algorithm
     for level in xrange(MAX_ITER):
+
+        n = FacetNormal(mesh)
 
         # Function spaces
         BDM = FunctionSpace(mesh, "Brezzi-Douglas-Marini", order)
@@ -284,11 +292,11 @@ while t < T:
         E3_norm = sqrt(sum([e3*e3 for e3 in E3]))
         E_norm  = sqrt(sum([e*e for e in E]))
 
-        print "Level %d: E = %g (TOL = %g)" % (level, E_norm, TOL)
+        print_good("Level %d: E = %g (TOL = %g)" % (level, E_norm, TOL))
 
         # Check convergence
         if E_norm < TOL:
-            print "Success, solution converged after %d iterations" % level
+            print_better("Success, solution converged after %d iterations" % level)
             break
 
         # Mark cells for refinement
@@ -311,4 +319,4 @@ while t < T:
     s_file << s
 
     # Update to next time step
-    U0 = project(U, mixed_space0)
+    U0 = interpolate(U, mixed_space0)
