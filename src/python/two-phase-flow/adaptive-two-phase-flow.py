@@ -242,18 +242,12 @@ while t < T:
         problem = TwoPhaseFlow(a, L, ffc_parameters)
         solver  = NewtonSolver()
         solver.parameters["absolute_tolerance"] = 1e-14 
-        solver.parameters["relative_tolerance"] = 1e-9
+        solver.parameters["relative_tolerance"] = 1e-13
         solver.parameters["maximum_iterations"] = 10
 
         print "Solving primal problem"
         solver.solve(problem, U.vector())
-        u, p, s = U.split(True)
-        
-        if min(s.vector().array()) < 0.0 - DOLFIN_EPS or max(s.vector().array()) > 1.0 + DOLFIN_EPS:
-            print min(s.vector().array()), max(s.vector().array())
-            print "Danger, Will Robinson!"
-            sys.exit(0)
-
+        u, p, s = U.split()
 
         # Variational forms for the adjoint problem
         a_adjoint = adjoint(a)
