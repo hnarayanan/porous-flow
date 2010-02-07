@@ -184,10 +184,6 @@ while t < T:
     t += float(dt)
     print_good("Solving at time t = %f" % t)
 
-    # Computational domain
-#    mesh = Mesh(mesh0)
-#    mesh1 = Mesh(mesh0)
-
     # Start the adaptive algorithm
     for level in xrange(MAX_ITER):
 
@@ -207,7 +203,6 @@ while t < T:
         V   = TestFunction(mixed_space)
         dU  = TrialFunction(mixed_space)
         U   = Function(mixed_space)
-#        U0  = interpolate(U0, mixed_space)
 
         v, q, r = split(V)
         u, p, s = split(U)
@@ -265,12 +260,10 @@ while t < T:
 
         # Compute the derivatives of the solutions of the adjoint problem
         Dz_u = project(div(z_u), P0s)
-        # Dz_p = project(grad(z_p), P0v)
-        # Dz_s = project(grad(z_s), P0v)
 
         # FIXME: These are fake derivatives
-        Dz_p = project(as_vector([Constant(1.0), Constant(1.0)]), P0v)
-        Dz_s = project(as_vector([Constant(1.0), Constant(1.0)]), P0v) 
+        Dz_p = project(Constant((1.0, 1.0)), P0v)
+        Dz_s = project(Constant((1.0, 1.0)), P0v) 
 
         # Estimate the error
         E1 = zeros(mesh.num_cells()) # From ||Dz_u|| ||h R1||
