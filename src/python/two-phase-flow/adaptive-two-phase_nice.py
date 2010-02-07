@@ -187,7 +187,7 @@ while t < T:
     # Start the adaptive algorithm
     for level in xrange(MAX_ITER):
 
-        # Update mesh
+        # Update to new mesh
         mesh = mesh_new
         n = FacetNormal(mesh)
 

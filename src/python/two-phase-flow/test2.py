@@ -5,8 +5,10 @@ parameters["form_compiler"]["optimize"] = True
 def lmbdainv(s): return 1.0/((1.0/0.2)*s**2 + (1.0 - s)**2)
 def F(s): return s**2/(s**2 + 0.2*(1.0 - s)**2)
 
-mesh = UnitSquare(8, 8, "crossed")
-n = FacetNormal(mesh)
+# Computational domain and geometry information
+mesh_init = UnitSquare(2, 2, "crossed")
+
+mesh_new = Mesh(mesh_init)
 
 t  = 0.0
 dt = Constant(0.005)
@@ -14,6 +16,9 @@ T  = 100*float(dt)
 while t < T:
     t += float(dt)
     for level in xrange(5):
+        mesh = mesh_new
+        n = FacetNormal(mesh)
+
         BDM = FunctionSpace(mesh, "Brezzi-Douglas-Marini", 1)
         DG  = FunctionSpace(mesh, "Discontinuous Lagrange", 0)
         ME  = MixedFunctionSpace([BDM, DG, DG])
@@ -42,6 +47,9 @@ while t < T:
 
         pde = VariationalProblem(a, L)
         pde.solve()
-    
+
+    mesh_new = Mesh(mesh)
+    mesh_new.refine()
+
     raw_input("Check memory use and press ENTER to continue")
 
