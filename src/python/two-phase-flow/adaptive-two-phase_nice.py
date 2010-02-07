@@ -101,9 +101,6 @@ REFINE_RATIO = 0.05  # Fraction of cells to refine in each iteration
 MAX_ITER = 10        # Maximum number of iterations
 MIN_SIZE = 0.015625  # Minimum cell diameter
 
-# Computational domain and geometry information
-mesh0 = UnitSquare(8, 8, "crossed")
-
 # Physical parameters, functional forms and boundary conditions
 # Relative viscosity of water w.r.t. crude oil
 mu_rel = 0.2
@@ -168,16 +165,19 @@ u_file = File("velocity.pvd")
 p_file = File("pressure.pvd")
 s_file = File("saturation.pvd")
 
-BDM0 = FunctionSpace(mesh0, "Brezzi-Douglas-Marini", order)
-DG0 = FunctionSpace(mesh0, "Discontinuous Lagrange", order - 1)
-mixed_space0 = MixedFunctionSpace([BDM0, DG0, DG0])
-U0 = Function(mixed_space0)
+# Computational domain and geometry information
+mesh_init = UnitSquare(8, 8, "crossed")
+
+# Function spaces and functions on the intial mesh
+BDM_init = FunctionSpace(mesh_init, "Brezzi-Douglas-Marini", order)
+DG_init = FunctionSpace(mesh_init, "Discontinuous Lagrange", order - 1)
+mixed_space_init = MixedFunctionSpace([BDM_init, DG_init, DG_init])
+U0       = Function(mixed_space_init)
 
 t = 0.0
 T = N*float(dt)
 
-mesh = Mesh(mesh0)
-mesh1 = Mesh(mesh0)
+mesh_new = Mesh(mesh_init)
 
 while t < T:
 
@@ -187,7 +187,8 @@ while t < T:
     # Start the adaptive algorithm
     for level in xrange(MAX_ITER):
 
-        mesh = Mesh(mesh1)
+        # Update mesh
+        mesh = mesh_new
         n = FacetNormal(mesh)
 
         # Function spaces
@@ -203,6 +204,9 @@ while t < T:
         V   = TestFunction(mixed_space)
         dU  = TrialFunction(mixed_space)
         U   = Function(mixed_space)
+
+        print "Verify mesh sizes", U0.function_space().mesh().num_cells(), \
+                                   U.function_space().mesh().num_cells()
 
         v, q, r = split(V)
         u, p, s = split(U)
@@ -304,10 +308,9 @@ while t < T:
         for c in cells(mesh):
             cell_markers[c] = E[c.index()] > E_0 and c.diameter() > MIN_SIZE
 
-        mesh1 = Mesh(mesh)
-
-        # Refine mesh
-        mesh1.refine(cell_markers)
+        # Copy mesh and refine
+        mesh_new = Mesh(mesh)
+        mesh_new.refine(cell_markers)
 
     # Plot and store interesting quantities
     # plot(mesh1, title="Mesh at time t = %f" % t)
@@ -319,4 +322,7 @@ while t < T:
     s_file << s
 
     # Update to next time step
+    print "Functions dim (0)", U0.vector().size(), U.vector().size()
     U0 = U
+    print "Functions dim (1)", U0.vector().size()
+
