@@ -2,54 +2,45 @@ from dolfin import *
 parameters["form_compiler"]["cpp_optimize"] = True
 parameters["form_compiler"]["optimize"] = True
 
-def lmbdainv(s): return 1.0/((1.0/0.2)*s**2 + (1.0 - s)**2)
-def F(s): return s**2/(s**2 + 0.2*(1.0 - s)**2)
-
 # Computational domain and geometry information
 mesh_init = UnitSquare(2, 2, "crossed")
-
 mesh_new = Mesh(mesh_init)
+
+V0 = FunctionSpace(mesh_init, "CG", 1)
+u0 = Function(V0)
 
 t  = 0.0
 dt = Constant(0.005)
 T  = 100*float(dt) 
 while t < T:
+
     t += float(dt)
+
     for level in xrange(5):
+
         mesh = mesh_new
-        n = FacetNormal(mesh)
+        V   = FunctionSpace(mesh, "CG", 1)
+        v   = TestFunction(V)
+        du  = TrialFunction(V)
+        u   = Function(V)
 
-        BDM = FunctionSpace(mesh, "Brezzi-Douglas-Marini", 1)
-        DG  = FunctionSpace(mesh, "Discontinuous Lagrange", 0)
-        ME  = MixedFunctionSpace([BDM, DG, DG])
+        print "Verify function dim (a)"
+        print u.function_space().mesh().num_cells()
+        print "Verify function dim (b)"
+        print u0.function_space().mesh().num_cells()
+        print "End verify functions dims"
+  
+        L = v*(u-u0)*dx
+        a = derivative(L, u, du)
 
-        V   = TestFunction(ME)
-        dU  = TrialFunction(ME)
-        U   = Function(ME)
-        U0  = Function(ME)
-
-        v, q, r = split(V)
-        u, p, s = split(U)
-        u0, p0, s0 = split(U0)
-        s_mid = 0.5*(s0 + s)
-
-        un   = 0.5*(dot(u0, n) + sqrt(dot(u0, n)*dot(u0, n)))
-        un_h = 0.5*(dot(u0, n) - sqrt(dot(u0, n)*dot(u0, n)))
-        L1 = inner(v, lmbdainv(s_mid)*u)*dx - div(v)*p*dx
-        L2 = q*div(u)*dx
-        L3 = r*(s - s0)*dx - dt*dot(grad(r), F(s_mid)*u)*dx \
-            + dt*r*F(s_mid)*un*ds \
-            + dt('+')*dot(jump(r), un('+')*F(s_mid)('+') \
-            - un('-')*F(s_mid)('-'))*dS
-
-        L = L1 + L2 + L3
-        a = derivative(L, U, dU)
-
-        pde = VariationalProblem(a, L)
-        pde.solve()
+        #pde = VariationalProblem(a, L)
+        #pde.solve()
 
     mesh_new = Mesh(mesh)
     mesh_new.refine()
+
+    u0 = Function(V)
+    u0.interpolate(u)
 
     raw_input("Check memory use and press ENTER to continue")
 

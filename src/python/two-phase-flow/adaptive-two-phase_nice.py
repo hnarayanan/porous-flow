@@ -98,7 +98,7 @@ parameters["form_compiler"]["optimize"] = True
 # Parameters related to the adaptivity
 TOL = 0.005          # Desired error tolerance
 REFINE_RATIO = 0.05  # Fraction of cells to refine in each iteration
-MAX_ITER = 10        # Maximum number of iterations
+MAX_ITER = 3        # Maximum number of iterations
 MIN_SIZE = 0.015625  # Minimum cell diameter
 
 # Physical parameters, functional forms and boundary conditions
@@ -188,10 +188,12 @@ while t < T:
     for level in xrange(MAX_ITER):
 
         # Update to new mesh
+        print "Mesh update"
         mesh = mesh_new
         n = FacetNormal(mesh)
 
         # Function spaces
+        print "Create space"
         BDM = FunctionSpace(mesh, "Brezzi-Douglas-Marini", order)
         DG = FunctionSpace(mesh, "Discontinuous Lagrange", order - 1)
         mixed_space = MixedFunctionSpace([BDM, DG, DG])
@@ -201,12 +203,16 @@ while t < T:
         P0v = VectorFunctionSpace(mesh, "Discontinuous Lagrange", 0)
 
         # Functions
+        print "Create functions"
         V   = TestFunction(mixed_space)
         dU  = TrialFunction(mixed_space)
         U   = Function(mixed_space)
 
-        print "Verify mesh sizes", U0.function_space().mesh().num_cells(), \
-                                   U.function_space().mesh().num_cells()
+        print "Verify function dim (a)" 
+        print U.function_space().mesh().num_cells()
+        print "Verify function dim (b)" 
+        print U0.function_space().mesh().num_cells()
+        print "End verify function dim" 
 
         v, q, r = split(V)
         u, p, s = split(U)
@@ -302,27 +308,34 @@ while t < T:
             print_better("Success, solution converged after %d iterations" % level)
             break
 
+        # Copy mesh and refine
+        mesh_new = Mesh(mesh)
+
         # Mark cells for refinement
-        cell_markers = MeshFunction("bool", mesh, mesh.topology().dim())
+        cell_markers = MeshFunction("bool", mesh_new, mesh_new.topology().dim())
         E_0 = sorted(E, reverse=True)[int(len(E)*REFINE_RATIO)]
-        for c in cells(mesh):
+        for c in cells(mesh_new):
             cell_markers[c] = E[c.index()] > E_0 and c.diameter() > MIN_SIZE
 
         # Copy mesh and refine
-        mesh_new = Mesh(mesh)
+        #mesh_new = Mesh(mesh)
+        print "Start refine"
         mesh_new.refine(cell_markers)
+        mesh_new.init()
+        print "End refine"
 
     # Plot and store interesting quantities
     # plot(mesh1, title="Mesh at time t = %f" % t)
     # plot(u, title="Velocity")
     # plot(p, title="Pressure")
     # plot(s, title="Saturation at time t = %f" % t)
-    u_file << u
-    p_file << p
-    s_file << s
+    #u_file << u
+    #p_file << p
+    #s_file << s
 
     # Update to next time step
-    print "Functions dim (0)", U0.vector().size(), U.vector().size()
-    U0 = U
-    print "Functions dim (1)", U0.vector().size()
+    print "****Functions dim (0)", U0.vector().size(), U.vector().size()
+    U0 = Function(mixed_space)
+    U0.interpolate(U)
+    print "****Functions dim (1)", U0.vector().size()
 
