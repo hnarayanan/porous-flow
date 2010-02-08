@@ -166,7 +166,7 @@ p_file = File("pressure.pvd")
 s_file = File("saturation.pvd")
 
 # Computational domain and geometry information
-mesh_init = UnitSquare(8, 8, "crossed")
+mesh_init = UnitSquare(2, 2, "crossed")
 
 # Function spaces and functions on the intial mesh
 BDM_init = FunctionSpace(mesh_init, "Brezzi-Douglas-Marini", order)
@@ -312,17 +312,19 @@ while t < T:
         mesh_new = Mesh(mesh)
 
         # Mark cells for refinement
-        cell_markers = MeshFunction("bool", mesh_new, mesh_new.topology().dim())
-        E_0 = sorted(E, reverse=True)[int(len(E)*REFINE_RATIO)]
-        for c in cells(mesh_new):
-            cell_markers[c] = E[c.index()] > E_0 and c.diameter() > MIN_SIZE
+        #cell_markers = MeshFunction("bool", mesh_new, mesh_new.topology().dim())
+        #E_0 = sorted(E, reverse=True)[int(len(E)*REFINE_RATIO)]
+        #for c in cells(mesh_new):
+        #    cell_markers[c] = E[c.index()] > E_0 and c.diameter() > MIN_SIZE
 
         # Copy mesh and refine
         #mesh_new = Mesh(mesh)
-        print "Start refine"
-        mesh_new.refine(cell_markers)
-        mesh_new.init()
-        print "End refine"
+        #print "Start refine"
+        #mesh_new.refine(cell_markers)
+        #mesh_new.init()
+        #print "End refine"
+        #mesh_new = Mesh(mesh)
+        mesh_new.refine()
 
     # Plot and store interesting quantities
     # plot(mesh1, title="Mesh at time t = %f" % t)

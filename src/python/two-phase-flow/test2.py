@@ -16,13 +16,13 @@ while t < T:
 
     t += float(dt)
 
-    for level in xrange(5):
+    for level in xrange(2):
 
         mesh = mesh_new
-        V   = FunctionSpace(mesh, "CG", 1)
-        v   = TestFunction(V)
-        du  = TrialFunction(V)
-        u   = Function(V)
+        V  = FunctionSpace(mesh, "CG", 1)
+        v  = TestFunction(V)
+        du = TrialFunction(V)
+        u  = Function(V)
 
         print "Verify function dim (a)"
         print u.function_space().mesh().num_cells()
@@ -33,11 +33,11 @@ while t < T:
         L = v*(u-u0)*dx
         a = derivative(L, u, du)
 
-        #pde = VariationalProblem(a, L)
-        #pde.solve()
+        pde = VariationalProblem(a, L)
+        u = pde.solve()
 
-    mesh_new = Mesh(mesh)
-    mesh_new.refine()
+        mesh_new = Mesh(mesh)
+        mesh_new.refine()
 
     u0 = Function(V)
     u0.interpolate(u)
