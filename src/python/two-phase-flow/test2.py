@@ -7,7 +7,16 @@ mesh_init = UnitSquare(2, 2, "crossed")
 mesh_new = Mesh(mesh_init)
 
 V0 = FunctionSpace(mesh_init, "CG", 1)
-u0 = Function(V0)
+ME0 = V0 + V0
+U0 = Function(ME0)
+#u0 = Function(V0)
+#p0 = Function(V0)
+#s0 = Function(V0)
+
+#BDM0 = FunctionSpace(mesh_init, "Brezzi-Douglas-Marini", 1)
+#DG0 = FunctionSpace(mesh_init, "Discontinuous Lagrange", 0)
+#ME0 = MixedFunctionSpace([BDM0, DG0, DG0])
+#U0 = Function(ME0)
 
 t  = 0.0
 dt = Constant(0.005)
@@ -19,28 +28,52 @@ while t < T:
     for level in xrange(2):
 
         mesh = mesh_new
+
+        #BDM = FunctionSpace(mesh, "Brezzi-Douglas-Marini", 1)
+        #DG = FunctionSpace(mesh, "Discontinuous Lagrange", 0)
+        #ME = MixedFunctionSpace([BDM, DG, DG])
+
         V  = FunctionSpace(mesh, "CG", 1)
-        v  = TestFunction(V)
-        du = TrialFunction(V)
-        u  = Function(V)
+        ME = V + V
+        ME = MixedFunctionSpace([V, V])
+
+        (v, q) = TestFunctions(ME)
+        dU     = TrialFunction(ME)
+        U      = Function(ME)
+
+        #(v, q, r) = TestFunctions(ME)
+        #dU        = TrialFunction(ME)
+        #U         = Function(ME)
+
+        #u0,  p0, s0  = split(U0)
+        #u,   p, s    = split(U)
+        #du, dp, ds   = split(dU)
+
+        u0,  p0 = split(U0)
+        u,   p  = split(U)
+        du, dp  = split(dU)
 
         print "Verify function dim (a)"
-        print u.function_space().mesh().num_cells()
+        print U.function_space().mesh().num_cells()
         print "Verify function dim (b)"
-        print u0.function_space().mesh().num_cells()
+        print U0.function_space().mesh().num_cells()
         print "End verify functions dims"
   
-        L = v*(u-u0)*dx
-        a = derivative(L, u, du)
+        L = dot(v, u-u0)*dx + q*(p-p0)*dx #+ r*(s-s0)*dx
+        a = derivative(L, U, dU)
 
         pde = VariationalProblem(a, L)
-        u = pde.solve()
+        U = pde.solve()
 
         mesh_new = Mesh(mesh)
         mesh_new.refine()
 
-    u0 = Function(V)
-    u0.interpolate(u)
+    #U0 = U
+    V1 = FunctionSpace(mesh_new, "CG", 1)
+    ME1 = V1 + V1
+    U0 = Function(ME1)
+    #U0 = Function(ME)
+    U0.interpolate(U)
 
     raw_input("Check memory use and press ENTER to continue")
 
