@@ -1,7 +1,7 @@
 from dolfin import *
 
 # Computational domain and geometry information
-mesh_init = UnitSquare(2, 2, "crossed")
+mesh_init = UnitSquare(2, 2)
 mesh_new = Mesh(mesh_init)
 V0 = FunctionSpace(mesh_init, "CG", 1)
 U0 = Function(V0)
@@ -14,6 +14,13 @@ for t in xrange(3):
         v  = TestFunction(V)
         dU = TrialFunction(V)
         U  = Function(V)
+
+        print "Verify function dim (a)"
+        print U.function_space().mesh().num_cells()
+        print "Verify function dim (b)"
+        #print U0.function_space().dim()
+        print U0.function_space().mesh().num_cells()
+        print "End verify functions dims"
 
         L = v*(U-U0)*dx
         a = v*dU*dx
@@ -52,6 +59,7 @@ for t in xrange(3):
         print "Verify function dim (a)"
         print U.function_space().mesh().num_cells()
         print "Verify function dim (b)"
+        #print U0.function_space().dim()
         print U0.function_space().mesh().num_cells()
         print "End verify functions dims"
   
@@ -66,7 +74,9 @@ for t in xrange(3):
         mesh_new.refine()
 
     # This breaks for mixed element
-    #U0 = U
+    #print "Start assign"
+    #U0.assign(U)
+    #print "End assign"
 
     # This works for mixed element
     V1 = FunctionSpace(mesh_new, "CG", 1)

@@ -208,11 +208,11 @@ while t < T:
         dU  = TrialFunction(mixed_space)
         U   = Function(mixed_space)
 
-        print "Verify function dim (a)" 
-        print U.function_space().mesh().num_cells()
-        print "Verify function dim (b)" 
-        print U0.function_space().mesh().num_cells()
-        print "End verify function dim" 
+        #print "Verify function dim (a)" 
+        #print U.function_space().mesh().num_cells()
+        #print "Verify function dim (b)" 
+        #print U0.function_space().mesh().num_cells()
+        #print "End verify function dim" 
 
         v, q, r = split(V)
         u, p, s = split(U)
@@ -308,36 +308,30 @@ while t < T:
             print_better("Success, solution converged after %d iterations" % level)
             break
 
-        # Copy mesh and refine
         mesh_new = Mesh(mesh)
 
         # Mark cells for refinement
-        #cell_markers = MeshFunction("bool", mesh_new, mesh_new.topology().dim())
-        #E_0 = sorted(E, reverse=True)[int(len(E)*REFINE_RATIO)]
-        #for c in cells(mesh_new):
-        #    cell_markers[c] = E[c.index()] > E_0 and c.diameter() > MIN_SIZE
+        cell_markers = MeshFunction("bool", mesh_new, mesh_new.topology().dim())
+        E_0 = sorted(E, reverse=True)[int(len(E)*REFINE_RATIO)]
+        for c in cells(mesh_new):
+            cell_markers[c] = E[c.index()] > E_0 and c.diameter() > MIN_SIZE
 
         # Copy mesh and refine
-        #mesh_new = Mesh(mesh)
-        #print "Start refine"
-        #mesh_new.refine(cell_markers)
-        #mesh_new.init()
-        #print "End refine"
-        #mesh_new = Mesh(mesh)
-        mesh_new.refine()
+        mesh_new.refine(cell_markers)
 
     # Plot and store interesting quantities
     # plot(mesh1, title="Mesh at time t = %f" % t)
     # plot(u, title="Velocity")
     # plot(p, title="Pressure")
     # plot(s, title="Saturation at time t = %f" % t)
-    #u_file << u
-    #p_file << p
-    #s_file << s
+    u_file << u
+    p_file << p
+    s_file << s
 
     # Update to next time step
-    print "****Functions dim (0)", U0.vector().size(), U.vector().size()
+    BDM = FunctionSpace(mesh_new, "Brezzi-Douglas-Marini", order)
+    DG = FunctionSpace(mesh_new, "Discontinuous Lagrange", order - 1)
+    mixed_space = MixedFunctionSpace([BDM, DG, DG])
     U0 = Function(mixed_space)
     U0.interpolate(U)
-    print "****Functions dim (1)", U0.vector().size()
 
