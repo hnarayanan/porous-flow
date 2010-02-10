@@ -98,7 +98,7 @@ parameters["form_compiler"]["optimize"] = True
 # Parameters related to the adaptivity
 TOL = 0.005          # Desired error tolerance
 REFINE_RATIO = 0.05  # Fraction of cells to refine in each iteration
-MAX_ITER = 3        # Maximum number of iterations
+MAX_ITER = 10        # Maximum number of iterations
 MIN_SIZE = 0.015625  # Minimum cell diameter
 
 # Physical parameters, functional forms and boundary conditions
@@ -166,7 +166,7 @@ p_file = File("pressure.pvd")
 s_file = File("saturation.pvd")
 
 # Computational domain and geometry information
-mesh_init = UnitSquare(2, 2, "crossed")
+mesh_init = UnitSquare(8, 8, "crossed")
 
 # Function spaces and functions on the intial mesh
 BDM_init = FunctionSpace(mesh_init, "Brezzi-Douglas-Marini", order)
@@ -207,12 +207,6 @@ while t < T:
         V   = TestFunction(mixed_space)
         dU  = TrialFunction(mixed_space)
         U   = Function(mixed_space)
-
-        #print "Verify function dim (a)" 
-        #print U.function_space().mesh().num_cells()
-        #print "Verify function dim (b)" 
-        #print U0.function_space().mesh().num_cells()
-        #print "End verify function dim" 
 
         v, q, r = split(V)
         u, p, s = split(U)
@@ -317,6 +311,7 @@ while t < T:
             cell_markers[c] = E[c.index()] > E_0 and c.diameter() > MIN_SIZE
 
         # Copy mesh and refine
+        #mesh_new = Mesh(mesh)
         mesh_new.refine(cell_markers)
 
     # Plot and store interesting quantities
@@ -329,8 +324,8 @@ while t < T:
     s_file << s
 
     # Update to next time step
-    BDM0 = FunctionSpace(mesh_new, "Brezzi-Douglas-Marini", order)
-    DG0 = FunctionSpace(mesh_new, "Discontinuous Lagrange", order - 1)
+    BDM0 = FunctionSpace(mesh, "Brezzi-Douglas-Marini", order)
+    DG0 = FunctionSpace(mesh, "Discontinuous Lagrange", order - 1)
     mixed_space0 = MixedFunctionSpace([BDM0, DG0, DG0])
     U0 = Function(mixed_space0)
     U0.interpolate(U)
