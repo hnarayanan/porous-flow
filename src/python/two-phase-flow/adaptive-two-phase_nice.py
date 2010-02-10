@@ -329,9 +329,9 @@ while t < T:
     s_file << s
 
     # Update to next time step
-    BDM = FunctionSpace(mesh_new, "Brezzi-Douglas-Marini", order)
-    DG = FunctionSpace(mesh_new, "Discontinuous Lagrange", order - 1)
-    mixed_space = MixedFunctionSpace([BDM, DG, DG])
-    U0 = Function(mixed_space)
+    BDM0 = FunctionSpace(mesh_new, "Brezzi-Douglas-Marini", order)
+    DG0 = FunctionSpace(mesh_new, "Discontinuous Lagrange", order - 1)
+    mixed_space0 = MixedFunctionSpace([BDM0, DG0, DG0])
+    U0 = Function(mixed_space0)
     U0.interpolate(U)
 
