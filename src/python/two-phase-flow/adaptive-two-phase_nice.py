@@ -302,6 +302,7 @@ while t < T:
             print_better("Success, solution converged after %d iterations" % level)
             break
 
+        # Copy mesh
         mesh_new = Mesh(mesh)
 
         # Mark cells for refinement
@@ -310,8 +311,7 @@ while t < T:
         for c in cells(mesh_new):
             cell_markers[c] = E[c.index()] > E_0 and c.diameter() > MIN_SIZE
 
-        # Copy mesh and refine
-        #mesh_new = Mesh(mesh)
+        # Refine
         mesh_new.refine(cell_markers)
 
     # Plot and store interesting quantities
@@ -323,7 +323,8 @@ while t < T:
     p_file << p
     s_file << s
 
-    # Update to next time step
+    # Note: does this affect conservation properties???
+    # Interpolate solution to new mesh
     BDM0 = FunctionSpace(mesh, "Brezzi-Douglas-Marini", order)
     DG0 = FunctionSpace(mesh, "Discontinuous Lagrange", order - 1)
     mixed_space0 = MixedFunctionSpace([BDM0, DG0, DG0])
