@@ -242,7 +242,7 @@ while t < T:
         problem = TwoPhaseFlow(a, L, ffc_parameters)
         solver  = NewtonSolver()
         solver.parameters["absolute_tolerance"] = 1e-14 
-        solver.parameters["relative_tolerance"] = 1e-13
+        solver.parameters["relative_tolerance"] = 1e-9
         solver.parameters["maximum_iterations"] = 10
 
         print "Solving primal problem"
@@ -304,6 +304,7 @@ while t < T:
 
         # Copy mesh
         mesh_new = Mesh(mesh)
+        #mesh_new = mesh
 
         # Mark cells for refinement
         cell_markers = MeshFunction("bool", mesh_new, mesh_new.topology().dim())
