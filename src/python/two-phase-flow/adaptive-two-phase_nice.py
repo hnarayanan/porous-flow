@@ -81,6 +81,7 @@ __license__   = "GNU GPL Version 3.0"
 from dolfin import *
 from numpy import array, sort, zeros, max, abs
 import sys
+import os
 
 # This program does not run in parallel
 not_working_in_parallel("This program")
@@ -161,9 +162,12 @@ order = 1
 #ffc_parameters = {"quadrature_degree": order + 1, "representation": "quadrature"}
 ffc_parameters = {"representation": "quadrature"}
 
-u_file = File("velocity.pvd")
-p_file = File("pressure.pvd")
-s_file = File("saturation.pvd")
+if not os.path.exists("./results"):
+    os.makedirs("./results")
+
+u_file = File("results/velocity.pvd")
+p_file = File("results/pressure.pvd")
+s_file = File("results/saturation.pvd")
 
 # Computational domain and geometry information
 mesh_init = UnitSquare(8, 8, "crossed")
@@ -306,7 +310,9 @@ while t < T:
             cell_markers[c] = E[c.index()] > E_0 and c.diameter() > MIN_SIZE
 
         # Refine
+        print "Refining mesh"
         mesh_new = refine(mesh, cell_markers)
+        print "Finished refining mesh"
 
         print "----------------------------------"
         print memory_usage()
