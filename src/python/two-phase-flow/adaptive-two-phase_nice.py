@@ -99,7 +99,7 @@ parameters["form_compiler"]["optimize"] = True
 # Parameters related to the adaptivity
 TOL = 0.005          # Desired error tolerance
 REFINE_RATIO = 0.05  # Fraction of cells to refine in each iteration
-MAX_ITER = 10        # Maximum number of iterations
+MAX_ITER = 1      # Maximum number of iterations
 MIN_SIZE = 0.015625  # Minimum cell diameter
 
 # Physical parameters, functional forms and boundary conditions
@@ -165,9 +165,9 @@ ffc_parameters = {"representation": "quadrature"}
 if not os.path.exists("./results"):
     os.makedirs("./results")
 
-u_file = File("results/velocity.pvd")
-p_file = File("results/pressure.pvd")
-s_file = File("results/saturation.pvd")
+u_file = File("./results/velocity.pvd")
+p_file = File("./results/pressure.pvd")
+s_file = File("./results/saturation.pvd")
 
 # Computational domain and geometry information
 mesh_init = UnitSquare(8, 8, "crossed")
