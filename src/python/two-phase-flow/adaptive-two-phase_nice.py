@@ -24,7 +24,7 @@ Find u, p, s in V such that,
    (v, (lambda*K)^(-1)*u) - (div(v), p) = - (v, pbar*n)_N       (1)
                             (q, div(u)) = 0                     (2)
             (r, ds/dt) - (grad(r), F*u) = - (r, F*u.n)_N        (3)
-                             
+
 for all v, q, r in V'.
 
 Adjoint problem:
@@ -188,12 +188,10 @@ while t < T:
     for level in xrange(MAX_ITER):
 
         # Update to new mesh
-        print "Mesh update"
         mesh = mesh_new
         n = FacetNormal(mesh)
 
         # Function spaces
-        print "Create space"
         BDM = FunctionSpace(mesh, "Brezzi-Douglas-Marini", order)
         DG = FunctionSpace(mesh, "Discontinuous Lagrange", order - 1)
         mixed_space = MixedFunctionSpace([BDM, DG, DG])
@@ -203,7 +201,6 @@ while t < T:
         P0v = VectorFunctionSpace(mesh, "Discontinuous Lagrange", 0)
 
         # Functions
-        print "Create functions"
         V   = TestFunction(mixed_space)
         dU  = TrialFunction(mixed_space)
         U   = Function(mixed_space)
@@ -222,7 +219,7 @@ while t < T:
             + inner(v, pbar*n)*ds
         L2 = q*div(u)*dx
 
-        # Upwind normal velocity: (inner(v, n) + |inner(v, n)|)/2.0 
+        # Upwind normal velocity: (inner(v, n) + |inner(v, n)|)/2.0
         # (using velocity from previous step on facets)
         un   = 0.5*(inner(u0, n) + sqrt(inner(u0, n)*inner(u0, n)))
         un_h = 0.5*(inner(u0, n) - sqrt(inner(u0, n)*inner(u0, n)))
@@ -241,7 +238,7 @@ while t < T:
         # Setup and solve the primal problem
         problem = TwoPhaseFlow(a, L, ffc_parameters)
         solver  = NewtonSolver()
-        solver.parameters["absolute_tolerance"] = 1e-14 
+        solver.parameters["absolute_tolerance"] = 1e-14
         solver.parameters["relative_tolerance"] = 1e-9
         solver.parameters["maximum_iterations"] = 10
 
@@ -267,14 +264,14 @@ while t < T:
 
         # FIXME: These are fake derivatives
         Dz_p = project(Constant((1.0, 1.0)), P0v)
-        Dz_s = project(Constant((1.0, 1.0)), P0v) 
+        Dz_s = project(Constant((1.0, 1.0)), P0v)
 
         # Estimate the error
         E1 = zeros(mesh.num_cells()) # From ||Dz_u|| ||h R1||
         E2 = zeros(mesh.num_cells()) # From ||Dz_s|| ||h R2||
         E3 = zeros(mesh.num_cells()) # From ||Dz_p|| ||h R3||
         E = zeros(mesh.num_cells())  # Total
-    
+
         # FIXME: The following can be improved by evaluation at cells,
         # rather than points. This will be cleaned up for efficiency and
         # pythonic style after the error estimators begin to make sense.
@@ -302,18 +299,19 @@ while t < T:
             print_better("Success, solution converged after %d iterations" % level)
             break
 
-        # Copy mesh
-        mesh_new = Mesh(mesh)
-        #mesh_new = mesh
-
         # Mark cells for refinement
-        cell_markers = MeshFunction("bool", mesh_new, mesh_new.topology().dim())
+        cell_markers = MeshFunction("bool", mesh, mesh.topology().dim())
         E_0 = sorted(E, reverse=True)[int(len(E)*REFINE_RATIO)]
-        for c in cells(mesh_new):
+        for c in cells(mesh):
             cell_markers[c] = E[c.index()] > E_0 and c.diameter() > MIN_SIZE
 
         # Refine
-        mesh_new.refine(cell_markers)
+        mesh_new = refine(mesh, cell_markers)
+
+        print "----------------------------------"
+        print memory_usage()
+        print "----------------------------------"
+
 
     # Plot and store interesting quantities
     # plot(mesh1, title="Mesh at time t = %f" % t)
