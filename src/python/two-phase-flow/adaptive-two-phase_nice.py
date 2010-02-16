@@ -99,7 +99,7 @@ parameters["form_compiler"]["optimize"] = True
 # Parameters related to the adaptivity
 TOL = 0.005          # Desired error tolerance
 REFINE_RATIO = 0.05  # Fraction of cells to refine in each iteration
-MAX_ITER = 1      # Maximum number of iterations
+MAX_ITER = 10      # Maximum number of iterations
 MIN_SIZE = 0.015625  # Minimum cell diameter
 
 # Physical parameters, functional forms and boundary conditions
@@ -118,10 +118,6 @@ def lmbdainv(s):
 # Fractional flow function
 def F(s):
     return s**2/(s**2 + mu_rel*(1.0 - s)**2)
-
-# Time step size and number of steps
-dt = Constant(0.005)
-N = 1500
 
 # Pressure boundary condition
 class PressureBC(Expression):
@@ -170,18 +166,20 @@ p_file = File("./results/pressure.pvd")
 s_file = File("./results/saturation.pvd")
 
 # Computational domain and geometry information
-mesh_init = UnitSquare(8, 8, "crossed")
+mesh0 = UnitSquare(8, 8, "crossed")
+mesh_new = Mesh(mesh0)
 
 # Function spaces and functions on the intial mesh
-BDM_init = FunctionSpace(mesh_init, "Brezzi-Douglas-Marini", order)
-DG_init = FunctionSpace(mesh_init, "Discontinuous Lagrange", order - 1)
-mixed_space_init = MixedFunctionSpace([BDM_init, DG_init, DG_init])
-U0       = Function(mixed_space_init)
+BDM_init = FunctionSpace(mesh0, "Brezzi-Douglas-Marini", order)
+DG_init  = FunctionSpace(mesh0, "Discontinuous Lagrange", order - 1)
+ME       = MixedFunctionSpace([BDM_init, DG_init, DG_init])
+U0       = Function(ME)
 
+# Time step size and number of steps
+dt = Constant(0.005)
+N = 1500
 t = 0.0
 T = N*float(dt)
-
-mesh_new = Mesh(mesh_init)
 
 while t < T:
 
@@ -197,17 +195,17 @@ while t < T:
 
         # Function spaces
         BDM = FunctionSpace(mesh, "Brezzi-Douglas-Marini", order)
-        DG = FunctionSpace(mesh, "Discontinuous Lagrange", order - 1)
-        mixed_space = MixedFunctionSpace([BDM, DG, DG])
+        DG  = FunctionSpace(mesh, "Discontinuous Lagrange", order - 1)
+        ME  = MixedFunctionSpace([BDM, DG, DG])
 
         # Spaces to project to
         P0s = FunctionSpace(mesh, "Discontinuous Lagrange", 0)
         P0v = VectorFunctionSpace(mesh, "Discontinuous Lagrange", 0)
 
         # Functions
-        V   = TestFunction(mixed_space)
-        dU  = TrialFunction(mixed_space)
-        U   = Function(mixed_space)
+        V   = TestFunction(ME)
+        dU  = TrialFunction(ME)
+        U   = Function(ME)
 
         v, q, r = split(V)
         u, p, s = split(U)
@@ -225,13 +223,12 @@ while t < T:
 
         # Upwind normal velocity: (inner(v, n) + |inner(v, n)|)/2.0
         # (using velocity from previous step on facets)
-        un   = 0.5*(inner(u0, n) + sqrt(inner(u0, n)*inner(u0, n)))
-        un_h = 0.5*(inner(u0, n) - sqrt(inner(u0, n)*inner(u0, n)))
-        stabilisation = dt('+')*inner(jump(r), un('+')*F(s_mid)('+') \
-                                          - un('-')*F(s_mid)('-'))*dS \
-                                          + dt*r*un_h*sbar*ds
-        L3 = r*(s - s0)*dx - dt*inner(grad(r), F(s_mid)*u)*dx \
-            + dt*r*F(s_mid)*un*ds + stabilisation
+        un   = 0.5*(dot(u0, n) + sqrt(dot(u0, n)*dot(u0, n)))
+        un_h = 0.5*(dot(u0, n) - sqrt(dot(u0, n)*dot(u0, n)))
+        L_facet = dt('+')*dot(jump(r), un('+')*F(s_mid)('+') - un('-')*F(s_mid)('-'))*dS \
+                + dt*r*un_h*sbar*ds
+        L3 = r*(s - s0)*dx - dt*dot(grad(r), F(s_mid)*u)*dx \
+           + dt*r*F(s_mid)*un*ds + L_facet
 
         # Total L
         L = L1 + L2 + L3
@@ -254,9 +251,8 @@ while t < T:
         a_adjoint = adjoint(a)
         L_adjoint = inner(grad(u), grad(v))*dx
 
+        print "Create and solving adjoint problem"
         problem_adjoint = VariationalProblem(a_adjoint, L_adjoint)
-
-        print "Solving adjoint problem"
         (z_u, z_p, z_s) = problem_adjoint.solve().split()
 
         R1 = project(lmbdainv(s)*Kinv*u + grad(p), P0v)
@@ -334,5 +330,7 @@ while t < T:
     DG0 = FunctionSpace(mesh, "Discontinuous Lagrange", order - 1)
     mixed_space0 = MixedFunctionSpace([BDM0, DG0, DG0])
     U0 = Function(mixed_space0)
+    print "Interpolate U0"
     U0.interpolate(U)
+    print "Finished interpolate U0"
 
