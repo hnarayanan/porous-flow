@@ -25,6 +25,8 @@ src/cpp/demo
 *.ps
 *.tmp
 *.toc
+demo
+dolfin_plot.xml
 
 syntax: regexp
 .*\#.*\#$

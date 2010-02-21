@@ -5,8 +5,7 @@
 using namespace dolfin;
 using namespace MAd;
 
-void to_madlibmesh(const Mesh * mesh, 
-		   MAd::pMesh MAdMesh)
+void to_madlibmesh(const Mesh* mesh, MAd::pMesh MAdMesh)
 {
     
     std::map<int,int> MAdToSolverIds;
@@ -15,16 +14,28 @@ void to_madlibmesh(const Mesh * mesh,
     MAdToSolverIds.clear();
     SolverToMAdIds.clear();
     
-    uint nVerts = mesh->num_vertices();
+    uint current_vertex = 0;
+
+    for (VertexIterator vertex(*mesh); !vertex.end(); ++vertex)
+    {
+	uint gdim = mesh->geometry().dim();
+
+ 	SolverToMAdIds[current_vertex] = current_vertex + 1;
+ 	MAdToSolverIds[current_vertex + 1] = current_vertex;
+
+	std::vector<double> coordinates(gdim);
+	for (uint i = 0; i < gdim; ++i)
+	{
+	    coordinates[i] = vertex->x()[i];
+	}
+	if (gdim == 1)
+	    MAdMesh->add_point(current_vertex++, coordinates[0], 0.0, 0.0);
+	else if (gdim == 2)
+	    MAdMesh->add_point(current_vertex++, coordinates[0], coordinates[1], 0.0);
+	else if(gdim == 3)
+	    MAdMesh->add_point(current_vertex++, coordinates[0], coordinates[1], coordinates[2]);
+    }
     
-    const double * xyz = mesh->coordinates();
-    
-//     for (int iV = 0; iV < nVerts; iV++) {
-// 	MAdMesh->add_point(iV + 1, xyz[iV][0], xyz[iV][1], xyz[iV][2]);
-// 	std::cout << xyz[iV][0] << "\t" << xyz[iV][1] << "\t" << xyz[iV][2] << std:: endl;
-// 	SolverToMAdIds[iV] = iV + 1;
-// 	MAdToSolverIds[iV + 1] = iV;
-//     }
 
 //   // --- Build the elements ---
 //   int dim = solverMesh->getDim();
@@ -103,20 +114,8 @@ int main(void)
 
     pGModel MAdModel = NULL;
     GM_create(&MAdModel,"theModel");
-//    pMesh MAdMesh = M_new(MAdModel);
+    pMesh MAdMesh = M_new(MAdModel);
 
-//    to_madlibmesh(&mesh, MAdMesh);
-
-    for (VertexIterator vertex(mesh); !vertex.end(); ++vertex)
-    {
-	std::vector<double> coordinates(mesh.geometry().dim());
-	for (uint i = 0; i < mesh.geometry().dim(); ++i)
-	{
-	    coordinates[i] = vertex->x()[i];
-	    std::cout << coordinates[i] << "\t";
-	}
-	std::cout << std::endl;	    
-    }
-
+    to_madlibmesh(&mesh, MAdMesh);
     return 0;
 }
