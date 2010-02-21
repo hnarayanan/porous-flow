@@ -11,6 +11,20 @@ syntax: glob
 src/cpp/demo
 .DS_Store
 *.avi
+*.aux
+*.bbl
+*.blg
+*.brf
+*.dvi
+*.loa
+*.lof
+*.log
+*.lot
+*.out
+*.pdf
+*.ps
+*.tmp
+*.toc
 
 syntax: regexp
 .*\#.*\#$
