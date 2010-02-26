@@ -1,0 +1,148 @@
+\section{Formulation}
+\label{formulation}
+
+A detailed formulation will be described here. \cite{allen:1985} is a
+classical reference describing the mathematical model.
+
+\subsection{Steady-state Darcy flow}
+\label{darcy-flow}
+
+This program solves pressure-driven, steady-state Darcy's flow on a
+square plate with spatially varying permeability.
+
+\begin{equation}
+\begin{split}
+\bK^{-1}\bu + \grad(p) & = 0\\
+\div(\bu) & = 0
+\end{split}
+\end{equation}
+
+Which, in weak form reads:
+
+\begin{equation}
+\begin{split}
+(\bv, \bK^{-1}\bu) - (\div(\bv), p) = & - (\bv, p\bn)_N \quad\forall v \\
+(q, \div(\bu)) = & 0 \quad\forall q
+\end{split}
+\end{equation}
+
+It then proceeds to construct and solve the adjoint problem, with a
+suitable goal functional of interest as its right hand-side.
+
+\begin{equation}
+(\bw, \bK^{-1}\bv) - (\div(\bw), q) + (r, \div(\bv)) = M(v) \quad\forall
+v, q
+\end{equation}
+
+We solve this adjoint problem for the variable \bz{} = (\bw, r). After
+this, the error is estimated (rather crudely for now: ignoring jump
+terms and constant multipliers) using the dual weighted residual
+method:
+
+\begin{equation}
+M(\bu) - M(\bu_h) \approx  \sum_T |<\bR_T, \bz - \bz_h>_T + <\bR_{\partial T}, \bz - \bz_h>_{\partial T}|
+\end{equation}
+
+The error estimate is used to suitably refine the mesh, and the above
+process is repeated until a certain tolerance is reached.
+
+\subsection{Two-phase flow}
+\label{two-phase-flow}
+
+This program solves pressure-driven, time-dependent flow of two phases
+through porous media.
+
+{\bf Strong form:}
+
+\begin{equation}
+\begin{split}
+  (\lambda(s)\bK)^{-1}\bu + \grad(p) & = 0\\
+  \div(\bu) & = 0\\
+  \frac{\partial s}{\partial t} + \bu\cdot\grad(F(s)) & = 0,
+\end{split}
+\end{equation}
+
+where,
+
+\begin{equation}
+\begin{split}
+  \lambda(s) = & 1.0/\mu_{\mathrm{rel}} s^2 + (1 - s)^2 \\
+        F(s) = & k_{rw}(s)/\mu_w/(k_{rw}(s)/\mu_w + k_{ro}(s)/\mu_o) \\
+             = & s^2/(s^2 + \mu_{\mathrm{rel}}(1 - s)^2).
+\end{split}
+\end{equation}
+
+One can then can post-calculate the velocity of each phase using the
+relation: $\bu_j = - (k_{rj}(s)/\mu_j)\bK\grad(p)$.
+
+{\bf Weak form:}
+
+Find $\bu, p, s \in V$ such that,
+
+\begin{equation}
+\begin{split}
+(\bv, (\lambda\bK)^{-1}\bu) - (\div(v), p) = & - (\bv, \bar{p}\bn)_N \\
+                           (q, \div(\bu)) = & 0\\
+(r, \frac{\partial s}{\partial t}) - (\grad(r), F\bu) = & - (r,
+F\bu\cdot\bn)_N
+\end{split}
+\end{equation}
+
+$\forall \bv, q, r \in \hat{V}.$
+
+{\bf Adjoint problem:}
+
+Find $\bz_u, z_p, z_s in \hat{V}$ such that,
+
+\begin{equation}
+(\bz_u, (\lambda\bK)^{-1}\bv) - (\div(\bz_u), q) + (z_p, \div(\bv))
++ (z_s, r) - (z_s, s0) - dt (\grad(z_s), F\bv) + dt (z_s,
+F\bv\cdot\bn)_N = M(\bv)
+\end{equation}
+
+$\forall \bv, q, r \in V - V_h.$
+
+{\bf Error estimate (per time step):}
+
+Using the dual weighted residual method (ignoring jump terms and and
+constant multipliers),
+
+\begin{equation}
+M(\bu) - M(\bu_h) \approx  \sum_T |<\bR_T, \bz - \bz_h>_T +
+<\bR_{\partial T}, \bz - \bz_h>_{\partial T}| .
+\end{equation}
+
+% Model problem:
+
+%  -----4-----
+%  |         |
+%  1         2
+%  |         |
+%  -----3-----
+
+% Initial conditions:
+% u(x, 0) = 0
+% p(x, 0) = 0
+% s(x, 0) = 0 in \Omega
+
+% Boundary conditions:
+% p(x, t) = 1 - x on \Gamma_{1, 2, 3, 4}
+% s(x, t) = 1 on \Gamma_1 if u.n < 0
+% s(x, t) = 0 on \Gamma_{2, 3, 4} if u.n > 0
+
+% Goal functionals:
+% M(v) = inner(grad(u_h), grad(v))*dx
+% M(v) = inner(u_h, v)*dx
+% M(v) = inner(v, n)*ds(2)
+
+% Parameters:
+% mu_rel, Kinv, lmbdainv, F, dt, T
+
+% This implementation includes functional forms from the deal.II demo
+% available at: http://www.dealii.org/6.2.1/doxygen/deal.II/step_21.html
+
+% Local Variables:
+% TeX-master: "adaptive-porous-flow"
+% mode: latex
+% mode: flyspell
+% End:

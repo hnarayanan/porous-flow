@@ -99,7 +99,7 @@ parameters["form_compiler"]["optimize"] = True
 # Parameters related to the adaptivity
 TOL = 0.005          # Desired error tolerance
 REFINE_RATIO = 0.05  # Fraction of cells to refine in each iteration
-MAX_ITER = 10        # Maximum number of iterations
+MAX_ITER = 10      # Maximum number of iterations
 MIN_SIZE = 0.015625  # Minimum cell diameter
 
 # Physical parameters, functional forms and boundary conditions
@@ -251,7 +251,7 @@ while t < T:
         a_adjoint = adjoint(a)
         L_adjoint = inner(grad(u), grad(v))*dx
 
-        print "Create and solve adjoint problem"
+        print "Create and solving adjoint problem"
         problem_adjoint = VariationalProblem(a_adjoint, L_adjoint)
         (z_u, z_p, z_s) = problem_adjoint.solve().split()
 
