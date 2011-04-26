@@ -49,31 +49,110 @@ process is repeated until a certain tolerance is reached.
 \subsection{Two-phase flow}
 \label{two-phase-flow}
 
-This program solves pressure-driven, time-dependent flow of two phases
-through porous media.
-
-{\bf Strong form:}
+We are interested in the flow of two immiscible, incompressible fluids
+flowing through a heterogeneous porous medium, $\Omega \subset
+\mathbb{R}^{d}\; (d = 2, 3)$ over the time interval $\mathcal{I} = [0,
+T]$. In strong form $(S)$, our model problem for this case reads: Find
+the total velocity $\bu: \Omega \times \mathcal{I} \rightarrow
+\mathbb{R}^{d}$, pressure $p: \Omega \times \mathcal{I} \rightarrow
+\mathbb{R}$ and saturation $s: \Omega \times \mathcal{I} \rightarrow
+\mathbb{R}$ such that
 
 \begin{equation}
+  \begin{split}
+    (\lambda(s)\bK)^{-1}\bu + \grad(p) & = 0\\
+    \div(\bu) & = 0\\
+    \frac{\partial s}{\partial t} + \bu\cdot\grad(F(s)) & = 0,
+  \end{split}
+\label{two-phase-flow-strong}
+\end{equation}
+
+\noindent where $\bK: \Omega \rightarrow \mathbb{R}^{d \times d}$ is
+a given spatially-varying permeability tensor, $\lambda(s)$ is the
+total mobility and $F(s)$ is the fractional flow function. The
+treatment presented in this paper is general and independent of the
+functional forms of these quantities, but in order to fix concepts, we
+choose:
+\begin{equation}
+  \begin{split}
+    \lambda(s) & = \frac{1}{\mu_{\mathrm{rel}}} s^{2} + (1 - s)^{2}
+    \quad \mathrm{and}\\
+    F(s) & = \frac{s^{2}}{s^{2} + \mu_{\mathrm{rel}} (1 - s)^{2}},
+  \end{split}
+\end{equation}
+
+\noindent for some constant relative viscosity
+$\mu_{\mathrm{rel}}$.\footnote{Refer \cite{allen:1985} for details
+  relating to the continuum physics underlying this formulation.}
+
+Along with problem~(\ref{two-phase-flow-strong}), we specify the
+following compatible initial conditions:
+\begin{equation}
+  \begin{split}
+    \bu(\bx, 0) & = \bu_{0}(\bx)\; \mathrm{in}\; \Omega\\
+    p(\bx, 0) & = p_{0}(\bx)\; \mathrm{in}\; \Omega\\
+    s(\bx, 0) & = s_{0}(\bx)\; \mathrm{in}\; \Omega,
+  \end{split}
+\end{equation}
+and boundary conditions:
+\begin{equation}
+  \begin{split}
+    \bu & = \bg_{u}\; \mathrm{on}\; \partial \Omega_{D_{u}}\\
+    p & = g_{p}\; \mathrm{on}\; \partial \Omega_{D_{p}}\\
+    s & = g_{s}\; \mathrm{on}\; \partial \Omega_{D_{s}}
+    \quad \mathrm{and}
+  \end{split}
+\end{equation}
+\begin{equation}
+  \begin{split}
+    p \bn & = \overline{p \bn}\; \mathrm{on}\; \partial \Omega_{N_{u}}\\
+    \bu \cdot \bn & = \overline{\bu \cdot \bn}\;
+    \mathrm{on}\; \partial \Omega_{N_{p}}\\
+    F(s) \bu \cdot \bn & = \overline{F(s) \bu \cdot \bn}\;
+    \mathrm{on}\; \partial \Omega_{N_{s}}.
+  \end{split}
+\end{equation}
+
+When reposed in weak form $(W)$ pertinent to numerical implementation
+by the finite element method, problem~(\ref{two-phase-flow-strong})
+reads: Find $(\bu, p, s) \in W = V \times Q \times R$, such that
+\begin{equation}
+a((\bv, q, r); (\bu, p, s)) = L((\bv, q, r))
+\end{equation}
+for all $(\bv, q, r) \in \hat{W} =  \hat{V} \times \hat{Q} \times
+\hat{R}$,
+where
+\begin{equation}
 \begin{split}
-  (\lambda(s)\bK)^{-1}\bu + \grad(p) & = 0\\
-  \div(\bu) & = 0\\
-  \frac{\partial s}{\partial t} + \bu\cdot\grad(F(s)) & = 0,
+a((\bv, q, r); (\bu, p, s)) = &\phantom{-}
+    \int_{0}^{T} \langle \bv,\, (\lambda(s) K)^{-1} \bu \rangle \, \mathrm{d}t\;
+  - \int_{0}^{T} \langle \div(\bv),\, p \rangle \, \mathrm{d}t\;
+- \int_{0}^{T} \langle \grad(q),\, \bu \rangle \, \mathrm{d}t\\
+& + \int_{0}^{T} \langle r,\, \frac{\partial s}{\partial t} \rangle \, \mathrm{d}t\;
+  - \int_{0}^{T} \langle \grad(r),\, F(s) \bu \rangle \, \mathrm{d}t
+  \quad \mathrm{and}
+\end{split}
+\end{equation}
+\begin{equation}
+\begin{split}
+L((\bv, q, r)) =
+& - \int_{0}^{T} \langle \bv,\, \overline{p \bn} \rangle_{\partial
+  \Omega_{N_{u}}} \, \mathrm{d}t
+ - \int_{0}^{T} \langle q,\, \overline{\bu \cdot \bn}
+\rangle_{\partial \Omega_{N_{p}}} \, \mathrm{d}t
+ - \int_{0}^{T} \langle r,\, \overline{F(s) \bu \cdot \bn}
+\rangle_{\partial \Omega_{N_{s}}} \, \mathrm{d}t.
 \end{split}
 \end{equation}
 
-where,
+%\noindent where $\bx$ denotes a point in $\Omega$, and $t$ denotes a
+%time instant in the interval $\mathcal{I}$.
 
-\begin{equation}
-\begin{split}
-  \lambda(s) = & 1.0/\mu_{\mathrm{rel}} s^2 + (1 - s)^2 \\
-        F(s) = & k_{rw}(s)/\mu_w/(k_{rw}(s)/\mu_w + k_{ro}(s)/\mu_o) \\
-             = & s^2/(s^2 + \mu_{\mathrm{rel}}(1 - s)^2).
-\end{split}
-\end{equation}
+% \noindent And upon computing the total velocity, $\bu$, one can then
+% can post-calculate the velocity of each phase using the relation:
+% $\bu_{j} = - (k_{rj}(s)/\mu_{j})\, \bK\, \grad(p)$.
 
-One can then can post-calculate the velocity of each phase using the
-relation: $\bu_j = - (k_{rj}(s)/\mu_j)\bK\grad(p)$.
+%& = k_{rw}(s)/\mu_w/(k_{rw}(s)/\mu_w + k_{ro}(s)/\mu_o) \\
 
 {\bf Weak form:}
 
